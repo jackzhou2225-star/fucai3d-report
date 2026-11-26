@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh-CN"><head><meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5,user-scalable=yes">
 <title>福彩3D 选码模型 · 逐期论证</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -192,6 +192,8 @@ font-size:11.5px;font-weight:700;display:flex;align-items:center;justify-content
 width:41px;height:45px;border-radius:8px;font-size:15.5px;font-weight:700;
 font-family:ui-monospace,Consolas,monospace;line-height:1}
 .fn-chip i{font-style:normal;font-size:9px;font-weight:500;margin-top:3px;opacity:.85}
+.fn-chip em{font-style:italic;font-size:8.5px;font-weight:500;margin-top:2px;opacity:.7;
+ line-height:1;white-space:nowrap}
 .fn-chip.keep{background:#eff6ff;color:#2563eb;border:1.5px solid #bfdbfe}
 .fn-chip.kill{background:#fef2f2;color:#dc2626;border:1.5px solid #fecaca;
 text-decoration:line-through;text-decoration-thickness:1.5px}
@@ -296,18 +298,51 @@ footer b{color:var(--muted)}
  .card.tight{overflow-x:auto;-webkit-overflow-scrolling:touch}
  .log{overflow:visible}
  .log table{font-size:11.5px;min-width:0;width:100%;table-layout:fixed}
- .log th,.log td{padding:7px 4px;white-space:nowrap;font-size:10.5px}
- .log th{width:auto!important}
- .log th:nth-child(2),.log td:nth-child(2),
- .log th:nth-child(9),.log td:nth-child(9){display:none}
- .log th:nth-child(1),.log td:nth-child(1){width:19%!important}
- .log th:nth-child(3),.log td:nth-child(3){width:19%!important}
- .log th:nth-child(4),.log td:nth-child(4){width:13%!important}
- .log th:nth-child(5),.log td:nth-child(5){width:14%!important;text-align:center}
- .log th:nth-child(6),.log td:nth-child(6){width:23%!important}
- .log th:nth-child(7),.log td:nth-child(7){width:12%!important}
- .log th:nth-child(8),.log td:nth-child(8){width:14%!important;text-align:center}
- .log .mono{font-size:10px;letter-spacing:0}
+ .log>table>thead>tr>th,
+ .log>table>tbody>tr.r>td{padding:7px 3px;white-space:nowrap;font-size:10.5px}
+ /* 手机上隐藏次要列：上期(2)、形态(4)、累计(8)、区间(9) */
+ .log th:nth-child(2),.log tr.r td:nth-child(2),
+ .log th:nth-child(4),.log tr.r td:nth-child(4),
+ .log th:nth-child(8),.log tr.r td:nth-child(8),
+ .log th:nth-child(9),.log tr.r td:nth-child(9){display:none}
+ .log th:nth-child(1),.log tr.r td:nth-child(1){width:22%}
+ .log th:nth-child(3),.log tr.r td:nth-child(3){width:22%}
+ .log th:nth-child(5),.log tr.r td:nth-child(5){width:15%;text-align:center}
+ .log th:nth-child(6),.log tr.r td:nth-child(6){width:27%}
+ .log th:nth-child(7),.log tr.r td:nth-child(7){width:14%}
+ .log .mono{font-size:9.5px;letter-spacing:0}
+ /* 展开详情行必须正常换行，否则文字会撑出屏幕 */
+ .log tr.dt>td{padding:12px 3px!important;white-space:normal!important;
+  word-break:break-word;overflow-wrap:anywhere}
+ .fn,.fn-step,.fn-bar,.fn-body{box-sizing:border-box;max-width:100%}
+ .log tr.dt table{table-layout:fixed!important;width:100%!important;
+  min-width:0!important;max-width:100%!important;box-sizing:border-box}
+ .log tr.dt td,.log tr.dt th{white-space:normal!important;font-size:10.5px;
+  padding:5px 3px;word-break:break-word}
+ .fn-bar,.fn-chips,.fn-lg,.fn-c,.fn-hint,.fn-res,.fn-yu,.fn-meta,.fn-t,.fn-draw{white-space:normal!important;
+  word-break:break-word;overflow-wrap:anywhere;max-width:100%}
+ .fn-chips{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+ .fn-chip{width:auto;max-width:none;height:44px;font-size:15px;flex:none;
+  padding:2px 0;box-sizing:border-box;overflow:hidden}
+ .fn-chip i{font-size:8px;margin-top:1px;line-height:1.1;white-space:nowrap}
+ .fn-chip em{display:none}
+ .fn-lg{display:flex;gap:6px;align-items:center;margin-top:8px}
+ .fn-lg .fn-chip{width:auto!important;max-width:none!important;height:auto!important;
+  padding:2px 8px!important;font-size:11px!important}
+ .fn-bar span,.fn-bar i{white-space:normal}
+ .fn-step{gap:8px}
+ .fn-body{min-width:0;flex:1 1 0;overflow:hidden}
+ .dig-tbl{width:100%!important;min-width:0!important;table-layout:auto!important;
+  display:block!important}
+ .dig-tbl tbody{display:block!important;width:100%}
+ .dig-tbl tr{display:block!important;width:100%;padding:8px 0;
+  border-bottom:1px solid #eef3fa}
+ .dig-tbl tr:last-child{border-bottom:none}
+ .dig-tbl td,.dig-tbl th{display:block!important;width:auto!important;
+  text-align:left!important;border:none!important;padding:1px 2px!important;
+  font-size:11px!important;white-space:normal!important;word-break:break-word;
+  overflow-wrap:anywhere}
+ .dig-tbl td:first-child{font-weight:700;color:#0f172a;font-size:11.5px!important}
  .dt>td{padding:14px 12px}
  .md-code{font-size:27px;letter-spacing:3px}
  .md-body{padding:16px 14px 13px;gap:12px}
