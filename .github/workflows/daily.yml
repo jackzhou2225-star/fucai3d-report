@@ -1,8 +1,8 @@
 name: daily-predict
 on:
   schedule:
-    # 21:45 北京时间 = 13:45 UTC（北京时间无夏令时，全年稳定）
-    - cron: '45 13 * * *'
+    # 22:00 北京时间 = 14:00 UTC（北京时间无夏令时，全年稳定）
+    - cron: '0 14 * * *'
   workflow_dispatch:
 permissions:
   contents: write
