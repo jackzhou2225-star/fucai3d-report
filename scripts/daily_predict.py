@@ -9,7 +9,7 @@ from itertools import combinations
 
 HTML_PATH = "index.html"
 SEL = "01245689"
-SET = set(SEL)
+SET = set(int(c) for c in SEL)
 KILL = "3、7"
 CTX = ssl.create_default_context()
 
