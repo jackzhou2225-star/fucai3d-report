@@ -179,11 +179,21 @@ def main():
     section = build_section(draws)
     with io.open(HTML_PATH, "r", encoding="utf-8") as f:
         doc = f.read()
+    # 清掉旧的预测区块与旧的导航项
     doc = re.sub(r"<!--DAILY-START-->.*?<!--DAILY-END-->\n?", "", doc, flags=re.S)
-    idx = doc.find("<footer>")
+    doc = re.sub(r'<a href="#daily"[^>]*>.*?</a>\n?', "", doc, flags=re.S)
+    # 1) 注入到首屏正文最前面（紧跟导航后的 .wrap 内），保证打开就能看到
+    anchor = '<section id="verdict"'
+    idx = doc.find(anchor)
     if idx < 0:
-        raise RuntimeError("index.html 中找不到 <footer> 注入点")
+        raise RuntimeError("index.html 中找不到 <section id=\"verdict\" 注入点")
     doc = doc[:idx] + section + "\n" + doc[idx:]
+    # 2) 导航栏加一个显眼入口
+    navidx = doc.find('<a href="#verdict">一句话结论</a>')
+    if navidx >= 0:
+        doc = (doc[:navidx]
+               + '<a href="#daily" class="hot">★★ 今日预测</a>\n'
+               + doc[navidx:])
     with io.open(HTML_PATH, "w", encoding="utf-8") as f:
         f.write(doc)
     last = draws[-1]
