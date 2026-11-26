@@ -29,6 +29,7 @@ def fetch_draws(count=100):
         (zhcw, "https://www.zhcw.com/"),
         (cwl, "http://www.cwl.gov.cn/kjxx/3d/kjgg/"),
     ]
+    errors = []
     for url, referer in sources:
         try:
             req = urllib.request.Request(url, headers={
@@ -60,9 +61,12 @@ def fetch_draws(count=100):
                         out.append({"issue": issue, "nums": sorted(nums)})
             out.sort(key=lambda d: d["issue"])
             if len(out) >= 30:
+                print(f"SOURCE_OK: {url.split('/')[2]} rows={len(out)}")
                 return out
-        except Exception:
-            continue
+            errors.append(f"{url.split('/')[2]}: rows={len(out)}")
+        except Exception as e:
+            errors.append(f"{url.split('/')[2]}: {type(e).__name__} {e}")
+    print("SOURCE_ERRORS:", " | ".join(errors))
     return []
 
 def shape(nums):
