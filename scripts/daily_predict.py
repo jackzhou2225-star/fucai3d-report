@@ -26,46 +26,76 @@ def fetch_draws(count=100):
     cwl = (f"http://www.cwl.gov.cn/cwl_admin/front/cwlkj/search/kjxx/findDrawNotice"
            f"?name=3d&issueCount={count}")
     sources = [
-        (zhcw, "https://www.zhcw.com/"),
+        (zhcw, "https://www.zhcw.com/kjxx/3d/"),
         (cwl, "http://www.cwl.gov.cn/kjxx/3d/kjgg/"),
     ]
+    # 备源2：GitHub 镜像仓库（境外稳定，但每天早上才更新当晚数据）
+    mirror = "https://raw.githubusercontent.com/wenjinliuu/lottery-data-repo/main/public_data/v2/draws/fc3d.json"
     errors = []
     for url, referer in sources:
-        try:
-            req = urllib.request.Request(url, headers={
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-                "Referer": referer,
-                "X-Requested-With": "XMLHttpRequest",
-            })
-            with urllib.request.urlopen(req, timeout=30, context=CTX) as r:
-                text = r.read().decode("utf-8")
-            if text.startswith("jQuery"):
-                text = text[text.find("(") + 1:text.rfind(")")]
-            data = json.loads(text)
-            out = []
-            if "data" in data and isinstance(data["data"], list):
-                # 中彩网结构
-                for x in data["data"]:
-                    nums = [int(c) for c in str(x.get("frontWinningNum", "")).split()
-                            if c.isdigit()]
-                    if len(nums) == 3:
-                        out.append({"issue": int(x["issue"]), "nums": sorted(nums)})
-            else:
-                # 福彩官网结构
-                rows = data.get("result") or data
-                for x in rows:
-                    issue = int(str(x["code"]))
-                    reds = str(x.get("red", ""))
-                    nums = [int(c) for c in reds.split(",") if c.strip().isdigit()]
-                    if len(nums) == 3:
-                        out.append({"issue": issue, "nums": sorted(nums)})
-            out.sort(key=lambda d: d["issue"])
-            if len(out) >= 30:
-                print(f"SOURCE_OK: {url.split('/')[2]} rows={len(out)}")
-                return out
-            errors.append(f"{url.split('/')[2]}: rows={len(out)}")
-        except Exception as e:
-            errors.append(f"{url.split('/')[2]}: {type(e).__name__} {e}")
+        # 重试两次：中彩网对境外偶发断连
+        for attempt in range(2):
+            try:
+                req = urllib.request.Request(url, headers={
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36",
+                    "Referer": referer,
+                    "Accept": "*/*",
+                    "Accept-Language": "zh-CN,zh;q=0.9",
+                    "X-Requested-With": "XMLHttpRequest",
+                    "Connection": "close",
+                })
+                with urllib.request.urlopen(req, timeout=30, context=CTX) as r:
+                    text = r.read().decode("utf-8")
+                if text.startswith("jQuery"):
+                    text = text[text.find("(") + 1:text.rfind(")")]
+                data = json.loads(text)
+                out = []
+                if "data" in data and isinstance(data["data"], list):
+                    # 中彩网结构
+                    for x in data["data"]:
+                        nums = [int(c) for c in str(x.get("frontWinningNum", "")).split()
+                                if c.isdigit()]
+                        if len(nums) == 3:
+                            out.append({"issue": int(x["issue"]), "nums": sorted(nums)})
+                else:
+                    # 福彩官网结构
+                    rows = data.get("result") or data
+                    for x in rows:
+                        issue = int(str(x["code"]))
+                        reds = str(x.get("red", ""))
+                        nums = [int(c) for c in reds.split(",") if c.strip().isdigit()]
+                        if len(nums) == 3:
+                            out.append({"issue": issue, "nums": sorted(nums)})
+                out.sort(key=lambda d: d["issue"])
+                if len(out) >= 30:
+                    print(f"SOURCE_OK: {url.split('/')[2]} rows={len(out)}")
+                    return out
+                errors.append(f"{url.split('/')[2]}: rows={len(out)}")
+                break
+            except Exception as e:
+                errors.append(f"{url.split('/')[2]}#{attempt}: {type(e).__name__} {e}")
+                if attempt == 0:
+                    import time
+                    time.sleep(3)
+    # GitHub 镜像兜底
+    try:
+        req = urllib.request.Request(mirror, headers={
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+        })
+        with urllib.request.urlopen(req, timeout=40, context=CTX) as r:
+            data = json.loads(r.read().decode("utf-8"))
+        out = []
+        for x in data.get("draws", []):
+            digs = x.get("numbers", {}).get("digits", [])
+            if len(digs) == 3:
+                out.append({"issue": int(x["issue"]), "nums": sorted(digs)})
+        out.sort(key=lambda d: d["issue"])
+        if len(out) >= 30:
+            print(f"SOURCE_OK: raw.githubusercontent.com rows={len(out)} (mirror, may lag)")
+            return out
+        errors.append(f"mirror: rows={len(out)}")
+    except Exception as e:
+        errors.append(f"mirror: {type(e).__name__} {e}")
     print("SOURCE_ERRORS:", " | ".join(errors))
     return []
 
