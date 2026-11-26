@@ -147,7 +147,7 @@ def build_section(draws):
     return f'''<!--DAILY-START-->
 <section id="daily">
 <h2><span class="n">★</span>每日预测 · 1126 算法（自动更新）</h2>
-<p class="lede">每天 21:45 自动抓取福彩官网开奖，结算当日并给出次日预测。本区块由定时任务维护，历史论证见上方各节。</p>
+<p class="lede">每天 22:00 自动抓取福彩开奖，结算当日、追加进下方逐期台账，并给出次日预测。本区块由定时任务维护。</p>
 <div class="card">
 <h3>{today} · 第 {last["issue"]} 期开奖结果</h3>
 <table><thead><tr><th>期号</th><th class="num">开奖号</th><th class="num">形态</th><th class="num">01245689</th><th class="num">结果</th></tr></thead><tbody>
@@ -176,6 +176,13 @@ def main():
     draws = fetch_draws(100)
     if len(draws) < 10:
         raise RuntimeError(f"官网返回期数不足：{len(draws)}")
+    # 先追加台账（新期号才会写），再刷新每日预测区块
+    try:
+        from append_ledger import append_to_html
+        n_added, n_total = append_to_html(HTML_PATH, draws)
+        print(f"LEDGER: 新增 {n_added} 期，台账共 {n_total} 期")
+    except Exception as e:
+        print(f"LEDGER_SKIP: {type(e).__name__}: {e}")
     section = build_section(draws)
     with io.open(HTML_PATH, "r", encoding="utf-8") as f:
         doc = f.read()
