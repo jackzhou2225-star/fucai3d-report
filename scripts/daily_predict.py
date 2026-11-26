@@ -14,23 +14,56 @@ KILL = "3、7"
 CTX = ssl.create_default_context()
 
 def fetch_draws(count=100):
-    url = f"http://www.cwl.gov.cn/cwl_admin/front/cwlkj/search/kjxx/findDrawNotice?name=3d&issueCount={count}"
-    req = urllib.request.Request(url, headers={
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-        "Referer": "http://www.cwl.gov.cn/kjxx/3d/kjgg/",
-    })
-    with urllib.request.urlopen(req, timeout=30, context=CTX) as r:
-        data = json.loads(r.read().decode("utf-8"))
-    rows = data.get("result") or data
-    out = []
-    for x in rows:
-        issue = int(str(x["code"]))
-        reds = str(x.get("red", ""))
-        nums = [int(c) for c in reds.split(",") if c.strip().isdigit()]
-        if len(nums) == 3:
-            out.append({"issue": issue, "nums": sorted(nums)})
-    out.sort(key=lambda d: d["issue"])
-    return out
+    # 主源：中彩网 jsonp 接口（GitHub Actions 境外 IP 可访问）
+    # 备源：福彩官网（境内可访问，境外 403 时自动跳过）
+    sources = []
+    today = datetime.date.today()
+    start = (today - datetime.timedelta(days=180)).isoformat()
+    zhcw = ("https://jc.zhcw.com/port/client_json.php?callback=jQuery1"
+            f"&transactionType=10001001&lotteryId=2&issueCount={count}"
+            f"&startDate={start}&endDate={today.isoformat()}"
+            "&type=2&pageNum=1&pageSize=200")
+    cwl = (f"http://www.cwl.gov.cn/cwl_admin/front/cwlkj/search/kjxx/findDrawNotice"
+           f"?name=3d&issueCount={count}")
+    sources = [
+        (zhcw, "https://www.zhcw.com/"),
+        (cwl, "http://www.cwl.gov.cn/kjxx/3d/kjgg/"),
+    ]
+    for url, referer in sources:
+        try:
+            req = urllib.request.Request(url, headers={
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+                "Referer": referer,
+                "X-Requested-With": "XMLHttpRequest",
+            })
+            with urllib.request.urlopen(req, timeout=30, context=CTX) as r:
+                text = r.read().decode("utf-8")
+            if text.startswith("jQuery"):
+                text = text[text.find("(") + 1:text.rfind(")")]
+            data = json.loads(text)
+            out = []
+            if "data" in data and isinstance(data["data"], list):
+                # 中彩网结构
+                for x in data["data"]:
+                    nums = [int(c) for c in str(x.get("frontWinningNum", "")).split()
+                            if c.isdigit()]
+                    if len(nums) == 3:
+                        out.append({"issue": int(x["issue"]), "nums": sorted(nums)})
+            else:
+                # 福彩官网结构
+                rows = data.get("result") or data
+                for x in rows:
+                    issue = int(str(x["code"]))
+                    reds = str(x.get("red", ""))
+                    nums = [int(c) for c in reds.split(",") if c.strip().isdigit()]
+                    if len(nums) == 3:
+                        out.append({"issue": issue, "nums": sorted(nums)})
+            out.sort(key=lambda d: d["issue"])
+            if len(out) >= 30:
+                return out
+        except Exception:
+            continue
+    return []
 
 def shape(nums):
     return "豹子" if nums[0] == nums[1] == nums[2] else ("组三" if nums[0] == nums[1] or nums[1] == nums[2] else "组六")
