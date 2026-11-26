@@ -191,12 +191,13 @@ font-size:11.5px;font-weight:700;display:flex;align-items:center;justify-content
 .fn-chip{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;
 width:41px;height:45px;border-radius:8px;font-size:15.5px;font-weight:700;
 font-family:ui-monospace,Consolas,monospace;line-height:1}
+.fn-chip b{font-weight:700;line-height:1}
 .fn-chip i{font-style:normal;font-size:9px;font-weight:500;margin-top:3px;opacity:.85}
 .fn-chip em{font-style:italic;font-size:8.5px;font-weight:500;margin-top:2px;opacity:.7;
  line-height:1;white-space:nowrap}
 .fn-chip.keep{background:#eff6ff;color:#2563eb;border:1.5px solid #bfdbfe}
-.fn-chip.kill{background:#fef2f2;color:#dc2626;border:1.5px solid #fecaca;
-text-decoration:line-through;text-decoration-thickness:1.5px}
+.fn-chip.kill{background:#fef2f2;color:#dc2626;border:1.5px solid #fecaca}
+.fn-chip.kill b{text-decoration:line-through;text-decoration-thickness:1.5px}
 .fn-lg{display:inline-flex;gap:7px;align-items:center;margin-left:12px;font-size:11px;color:#94a3b8}
 .fn-draw{font-size:13px;margin-bottom:9px;color:#64748b}
 .fn-draw b{font-family:ui-monospace,Consolas,monospace;font-size:17px;color:#0f172a;letter-spacing:2px}
@@ -322,10 +323,11 @@ footer b{color:var(--muted)}
  .fn-bar,.fn-chips,.fn-lg,.fn-c,.fn-hint,.fn-res,.fn-yu,.fn-meta,.fn-t,.fn-draw{white-space:normal!important;
   word-break:break-word;overflow-wrap:anywhere;max-width:100%}
  .fn-chips{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
- .fn-chip{width:auto;max-width:none;height:44px;font-size:15px;flex:none;
-  padding:2px 0;box-sizing:border-box;overflow:hidden}
- .fn-chip i{font-size:8px;margin-top:1px;line-height:1.1;white-space:nowrap}
- .fn-chip em{display:none}
+ .fn-chip{width:auto;max-width:none;height:64px;font-size:16px;line-height:1;flex:none;
+  padding:6px 0 5px;box-sizing:border-box;overflow:visible;justify-content:center}
+ .fn-chip i{font-size:10.5px;font-weight:700;margin-top:4px;line-height:1;white-space:nowrap}
+ .fn-chip em{display:block;font-style:normal;font-size:9.5px;margin-top:2px;
+  line-height:1;opacity:.8;white-space:nowrap;font-weight:500}
  .fn-lg{display:flex;gap:6px;align-items:center;margin-top:8px}
  .fn-lg .fn-chip{width:auto!important;max-width:none!important;height:auto!important;
   padding:2px 8px!important;font-size:11px!important}
@@ -2720,9 +2722,9 @@ function render(){
   let digitChips = '';
   for (let d=0; d<10; d++) {
     const keep = p.sel.indexOf(String(d)) >= 0;
-    const pct = thin ? '—' : (r[d] ? (100*r[d][2]).toFixed(0)+'%' : '0%');
+    const pct = r[d] ? (100*r[d][2]).toFixed(0)+'%' : '0%';
     const full = p.r60full && p.r60full[d] ? (100*p.r60full[d][2]).toFixed(1)+'%' : '—';
-    digitChips += '<span class="fn-chip '+(keep?'keep':'kill')+'" title="全期 '+full+'">'+d+'<i>'+pct+'</i><em>'+full+'</em></span>';
+    digitChips += '<span class="fn-chip '+(keep?'keep':'kill')+'" title="全期 '+full+'"><b>'+d+'</b><i>'+pct+'</i><em>'+full+'</em></span>';
   }
 
   let rankNote = '';
@@ -2863,7 +2865,7 @@ function render(){
 
    + stepRow('1', '全码区 · 10 个数字，各自近期有多热',
        '<div class="fn-chips">'+digitChips+'</div>'
-       +'<div class="fn-hint">'+(thin ? '小字 = 回看期数不足 20 期，暂不显示比例，直接套用全样本结论。' : '小字 = 前 '+nwin+' 期出现占比（理论 27.1%），斜体小数 = 从第 1 期到上一期的全历史出现率。')
+       +'<div class="fn-hint">'+(thin ? '小字 = 前 '+nwin+' 期出现占比（不足 20 期，样本偏薄，仅供参考），斜体小数 = 从第 1 期到上一期的全历史出现率。' : '小字 = 前 '+nwin+' 期出现占比（理论 27.1%），斜体小数 = 从第 1 期到上一期的全历史出现率。')
        +'<span class="fn-lg"><span class="fn-chip keep" style="width:auto;height:auto;padding:2px 8px;font-size:11px">留</span>买'
        +' <span class="fn-chip kill" style="width:auto;height:auto;padding:2px 8px;font-size:11px">砍</span>杀</span></div>'
        + (thin ? '' : '<div class="fn-hint" style="margin-top:6px">'+rankNote+'</div>'),
