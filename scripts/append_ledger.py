@@ -186,11 +186,28 @@ def append_to_html(html_path, draws):
         return body
     doc = re.sub(r'<div class="stats">.*?</div>\s*</div>', _fix_stat, doc, count=1, flags=re.S)
 
-    # 标题期数与数据区间
-    doc = re.sub(r'逐期台账 · \d+ 期', f'逐期台账 · {total} 期', doc, count=1)
+    # 台账标题与数据区间（正文分析仍冻结在 302 期基准，避免与历史论证矛盾）
+    doc = re.sub(r'逐期台账 · \d+ 期(（[^）]*）)?',
+                 f'逐期台账 · {total} 期（新开奖自动追加，分析基准仍为 302 期）', doc, count=1)
     doc = re.sub(r'数据区间 <b>\d+–\d+</b>', f'数据区间 <b>{first_issue}–{last_new}</b>', doc, count=1)
-    doc = re.sub(r'数据区间 <b>\d+–\d+</b>，', f'数据区间 <b>{first_issue}–{last_new}</b>，', doc)
     doc = re.sub(r'全部 \d+ 期', f'全部 {total} 期', doc, count=1)
+
+    # 首页大标题 + 副标题 + 页脚（跟着台账实际期数走）
+    doc = re.sub(r'<br>\d+ 期逐期论证</h1>', f'<br>{total} 期逐期论证</h1>', doc, count=1)
+    doc = re.sub(r'数据区间 (\d+–\d+)　·　共 \d+ 期', f'数据区间 {first_issue}–{last_new}　·　共 {total} 期', doc, count=1)
+    doc = re.sub(r'数据区间 <b>\d+–\d+</b>　·　共 <b>\d+ 期</b>',
+                 f'数据区间 <b>{first_issue}–{last_new}</b>　·　共 <b>{total} 期</b>', doc, count=1)
+
+    # 首屏 KPI 卡（台账真实累计）
+    doc = re.sub(r'<div class="e">\d+ / \d+ 期 · 随机 33\.6%</div>',
+                 f'<div class="e">{z6} / {total} 期 · 随机 33.6%</div>', doc, count=1)
+    doc = re.sub(r'<div class="e">\d+ / \d+ 期 · 组三豹子不算中</div>',
+                 f'<div class="e">{z6} / {total} 期 · 组三豹子不算中</div>', doc, count=1)
+
+    # 台账底部口径行（活数据）
+    doc = re.sub(r'统计口径：组六可兑奖（组三、豹子不计入）· 真兑奖 \d+/\d+ = [\d.]+%',
+                 f'统计口径：组六可兑奖（组三、豹子不计入）· 台账内真兑奖 {z6}/{total} = {z6_rate:.2f}%',
+                 doc, count=1)
 
     with io.open(html_path, "w", encoding="utf-8") as f:
         f.write(doc)
