@@ -13,91 +13,164 @@ SET = set(int(c) for c in SEL)
 KILL = "3、7"
 CTX = ssl.create_default_context()
 
+UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+      "(KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36")
+
+
+def _get(url, referer=None, timeout=30, xhr=True):
+    h = {"User-Agent": UA, "Accept": "*/*",
+         "Accept-Language": "zh-CN,zh;q=0.9", "Connection": "close"}
+    if referer:
+        h["Referer"] = referer
+    if xhr:
+        h["X-Requested-With"] = "XMLHttpRequest"
+    req = urllib.request.Request(url, headers=h)
+    with urllib.request.urlopen(req, timeout=timeout, context=CTX) as r:
+        return r.read().decode("utf-8", errors="ignore")
+
+
+def fetch_latest_api():
+    """免注册接口，直接给最新一期。境外可达性最好，用来做"新鲜度锚点"。"""
+    try:
+        t = _get("https://cn.apihz.cn/api/caipiao/fucai3d.php?id=88888888&key=88888888",
+                 timeout=25, xhr=False)
+        d = json.loads(t)
+        if d.get("code") == 200 and d.get("qihao"):
+            nums = [int(c) for c in str(d["number"]).replace("|", " ").split()
+                    if c.isdigit()]
+            if len(nums) == 3:
+                return {"issue": int(d["qihao"]), "nums": sorted(nums)}
+    except Exception as e:
+        print(f"APIHZ_FAIL: {type(e).__name__} {e}")
+    return None
+
+
+def _parse_generic(text):
+    """解析中彩网/福彩官网两种结构，返回 [{issue,nums}]"""
+    if text.startswith("jQuery"):
+        text = text[text.find("(") + 1:text.rfind(")")]
+    data = json.loads(text)
+    out = []
+    if isinstance(data, dict) and isinstance(data.get("data"), list):
+        for x in data["data"]:                       # 中彩网
+            nums = [int(c) for c in str(x.get("frontWinningNum", "")).split()
+                    if c.isdigit()]
+            if len(nums) == 3:
+                out.append({"issue": int(x["issue"]), "nums": sorted(nums)})
+    else:
+        rows = (data.get("result") if isinstance(data, dict) else data) or []
+        for x in rows:                               # 福彩官网
+            nums = [int(c) for c in str(x.get("red", "")).split(",")
+                    if c.strip().isdigit()]
+            if len(nums) == 3:
+                out.append({"issue": int(str(x["code"])), "nums": sorted(nums)})
+    out.sort(key=lambda d: d["issue"])
+    return out
+
+
 def fetch_draws(count=100):
-    # 主源：中彩网 jsonp 接口（GitHub Actions 境外 IP 可访问）
-    # 备源：福彩官网（境内可访问，境外 403 时自动跳过）
-    sources = []
+    """按可靠性依次尝试多源；最后用 freshness 接口补齐最新一期（镜像常滞后一天）。"""
     today = datetime.date.today()
     start = (today - datetime.timedelta(days=180)).isoformat()
     zhcw = ("https://jc.zhcw.com/port/client_json.php?callback=jQuery1"
             f"&transactionType=10001001&lotteryId=2&issueCount={count}"
             f"&startDate={start}&endDate={today.isoformat()}"
             "&type=2&pageNum=1&pageSize=200")
-    cwl = (f"http://www.cwl.gov.cn/cwl_admin/front/cwlkj/search/kjxx/findDrawNotice"
+    zhcw_daily = ("https://jc.zhcw.com/port/client_json.php?callback=jQuery1"
+                  "&transactionType=10001005&lotteryId=3&count=30")
+    cwl = ("http://www.cwl.gov.cn/cwl_admin/front/cwlkj/search/kjxx/findDrawNotice"
            f"?name=3d&issueCount={count}")
-    sources = [
-        (zhcw, "https://www.zhcw.com/kjxx/3d/"),
-        (cwl, "http://www.cwl.gov.cn/kjxx/3d/kjgg/"),
-    ]
-    # 备源2：GitHub 镜像仓库（境外稳定，但每天早上才更新当晚数据）
-    mirror = "https://raw.githubusercontent.com/wenjinliuu/lottery-data-repo/main/public_data/v2/draws/fc3d.json"
+    mirror = ("https://raw.githubusercontent.com/wenjinliuu/lottery-data-repo"
+              "/main/public_data/v2/draws/fc3d.json")
+
     errors = []
-    for url, referer in sources:
-        # 重试两次：中彩网对境外偶发断连
-        for attempt in range(2):
-            try:
-                req = urllib.request.Request(url, headers={
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36",
-                    "Referer": referer,
-                    "Accept": "*/*",
-                    "Accept-Language": "zh-CN,zh;q=0.9",
-                    "X-Requested-With": "XMLHttpRequest",
-                    "Connection": "close",
-                })
-                with urllib.request.urlopen(req, timeout=30, context=CTX) as r:
-                    text = r.read().decode("utf-8")
-                if text.startswith("jQuery"):
-                    text = text[text.find("(") + 1:text.rfind(")")]
-                data = json.loads(text)
-                out = []
-                if "data" in data and isinstance(data["data"], list):
-                    # 中彩网结构
-                    for x in data["data"]:
-                        nums = [int(c) for c in str(x.get("frontWinningNum", "")).split()
-                                if c.isdigit()]
-                        if len(nums) == 3:
-                            out.append({"issue": int(x["issue"]), "nums": sorted(nums)})
-                else:
-                    # 福彩官网结构
-                    rows = data.get("result") or data
-                    for x in rows:
-                        issue = int(str(x["code"]))
-                        reds = str(x.get("red", ""))
-                        nums = [int(c) for c in reds.split(",") if c.strip().isdigit()]
-                        if len(nums) == 3:
-                            out.append({"issue": issue, "nums": sorted(nums)})
-                out.sort(key=lambda d: d["issue"])
-                if len(out) >= 30:
-                    print(f"SOURCE_OK: {url.split('/')[2]} rows={len(out)}")
-                    return out
-                errors.append(f"{url.split('/')[2]}: rows={len(out)}")
+    best = []
+
+    # A. 中彩网历史（最全）
+    for attempt in range(3):
+        try:
+            out = _parse_generic(_get(zhcw, "https://www.zhcw.com/kjxx/3d/"))
+            if len(out) >= 30:
+                print(f"SOURCE_OK: zhcw history rows={len(out)}")
+                best = out
                 break
-            except Exception as e:
-                errors.append(f"{url.split('/')[2]}#{attempt}: {type(e).__name__} {e}")
-                if attempt == 0:
-                    import time
-                    time.sleep(3)
-    # GitHub 镜像兜底
-    try:
-        req = urllib.request.Request(mirror, headers={
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-        })
-        with urllib.request.urlopen(req, timeout=40, context=CTX) as r:
-            data = json.loads(r.read().decode("utf-8"))
-        out = []
-        for x in data.get("draws", []):
-            digs = x.get("numbers", {}).get("digits", [])
-            if len(digs) == 3:
-                out.append({"issue": int(x["issue"]), "nums": sorted(digs)})
-        out.sort(key=lambda d: d["issue"])
-        if len(out) >= 30:
-            print(f"SOURCE_OK: raw.githubusercontent.com rows={len(out)} (mirror, may lag)")
-            return out
-        errors.append(f"mirror: rows={len(out)}")
-    except Exception as e:
-        errors.append(f"mirror: {type(e).__name__} {e}")
-    print("SOURCE_ERRORS:", " | ".join(errors))
-    return []
+            errors.append(f"zhcw rows={len(out)}")
+        except Exception as e:
+            errors.append(f"zhcw#{attempt}: {type(e).__name__} {e}")
+            if attempt < 2:
+                import time
+                time.sleep(4)
+
+    # B. 福彩官网（境内直连，境外常 403）
+    if not best:
+        try:
+            out = _parse_generic(_get(cwl, "http://www.cwl.gov.cn/kjxx/3d/kjgg/"))
+            if len(out) >= 30:
+                print(f"SOURCE_OK: cwl rows={len(out)}")
+                best = out
+            else:
+                errors.append(f"cwl rows={len(out)}")
+        except Exception as e:
+            errors.append(f"cwl: {type(e).__name__} {e}")
+
+    # C. 中彩网"今日各彩种"（只要最新几条）
+    if not best:
+        try:
+            txt = _get(zhcw_daily, "https://www.zhcw.com/kjxx/3d/")
+            if txt.startswith("jQuery"):
+                txt = txt[txt.find("(") + 1:txt.rfind(")")]
+            d = json.loads(txt)
+            for x in d.get("lotteryResults", []):
+                if str(x.get("lotteryId")) == "2":
+                    nums = [int(c) for c in str(x.get("frontWinningNum", "")).split()
+                            if c.isdigit()]
+                    if len(nums) == 3:
+                        best.append({"issue": int(x["issue"]), "nums": sorted(nums)})
+            if best:
+                print(f"SOURCE_OK: zhcw daily rows={len(best)}")
+            else:
+                errors.append("zhcw daily rows=0")
+        except Exception as e:
+            errors.append(f"zhcw daily: {type(e).__name__} {e}")
+
+    # D. GitHub 镜像（境外稳定，但通常滞后一天）
+    if len(best) < 30:
+        try:
+            d = json.loads(_get(mirror, timeout=40, xhr=False))
+            mir = []
+            for x in d.get("draws", []):
+                digs = x.get("numbers", {}).get("digits", [])
+                if len(digs) == 3:
+                    mir.append({"issue": int(x["issue"]), "nums": sorted(digs)})
+            mir.sort(key=lambda z: z["issue"])
+            if len(mir) >= 20:
+                print(f"SOURCE_OK: mirror rows={len(mir)} (may lag)")
+                # 合并而非覆盖，保留已有的更新数据
+                merged = {x["issue"]: x for x in mir}
+                for x in best:
+                    merged[x["issue"]] = x
+                best = sorted(merged.values(), key=lambda z: z["issue"])
+            else:
+                errors.append(f"mirror rows={len(mir)}")
+        except Exception as e:
+            errors.append(f"mirror: {type(e).__name__} {e}")
+
+    # E. 新鲜度补齐：无论上面拿到什么，都用免注册接口核对最新一期
+    latest = fetch_latest_api()
+    if latest:
+        have = {x["issue"] for x in best}
+        if latest["issue"] not in have:
+            best.append(latest)
+            best.sort(key=lambda z: z["issue"])
+            print(f"SOURCE_PATCH: apihz 补入 {latest['issue']} {latest['nums']}")
+        else:
+            print(f"SOURCE_CHECK: apihz 与已有数据一致（{latest['issue']}）")
+
+    if not best:
+        print("SOURCE_ERRORS:", " | ".join(errors))
+    elif errors:
+        print("SOURCE_NOTES:", " | ".join(errors))
+    return best
 
 def shape(nums):
     return "豹子" if nums[0] == nums[1] == nums[2] else ("组三" if nums[0] == nums[1] or nums[1] == nums[2] else "组六")
