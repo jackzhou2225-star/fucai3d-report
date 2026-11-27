@@ -248,6 +248,7 @@ def build_section(draws):
 <tr><td><b>加强过滤（9注）</b></td><td class="mono">{"、".join(notes9)}</td></tr>
 <tr><td><b>近 10 期</b></td><td>8 码真兑奖命中 {h10}/10；近 30 期含2 {has2_30}/30、连号 {adj30}/30</td></tr>
 <tr><td><b>3 期内中一次</b></td><td>{roll3:.2f}%（滚动窗口，理论 70.72%）</td></tr>
+<tr style="background:#fffbf0"><td><b>保本赔付额</b></td><td><b>326 元</b>（= 成本 112 元 ÷ 覆盖率 34.39%）。低于此数每期亏，高于此数每期赚；命中率再优化 10 个百分点也换不来这 24 元差额</td></tr>
 </tbody></table>
 <div class="note warn" style="margin-top:14px;margin-bottom:0">
 <b>口径提醒：</b>真兑奖 = 三码全中且三数不同（组六口径）。8 码理论命中率 33.60%，前向期望约 38%。
