@@ -1,8 +1,10 @@
 name: daily-predict
 on:
   schedule:
-    # 22:00 北京时间 = 14:00 UTC（北京时间无夏令时，全年稳定）
+    # 北京时间 22:00 与 23:00（UTC 14:00 / 15:00）。跑两次做冗余：
+    # GitHub cron 会延迟 5~50 分钟，且数据源偶发不可用；脚本幂等，重复跑不会产生重复期号。
     - cron: '0 14 * * *'
+    - cron: '0 15 * * *'
   workflow_dispatch:
 permissions:
   contents: write
