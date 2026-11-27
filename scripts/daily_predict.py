@@ -30,18 +30,27 @@ def _get(url, referer=None, timeout=30, xhr=True):
 
 
 def fetch_latest_api():
-    """免注册接口，直接给最新一期。境外可达性最好，用来做"新鲜度锚点"。"""
-    try:
-        t = _get("https://cn.apihz.cn/api/caipiao/fucai3d.php?id=88888888&key=88888888",
-                 timeout=25, xhr=False)
-        d = json.loads(t)
-        if d.get("code") == 200 and d.get("qihao"):
-            nums = [int(c) for c in str(d["number"]).replace("|", " ").split()
-                    if c.isdigit()]
-            if len(nums) == 3:
-                return {"issue": int(d["qihao"]), "nums": sorted(nums)}
-    except Exception as e:
-        print(f"APIHZ_FAIL: {type(e).__name__} {e}")
+    """免注册接口，直接给最新一期。境外可达性最好，用来做"新鲜度锚点"。
+    多个 endpoint + 重试，任一成功即返回。"""
+    urls = [
+        "https://cn.apihz.cn/api/caipiao/fucai3d.php?id=88888888&key=88888888",
+        "https://api.apihz.cn/api/caipiao/fucai3d.php?id=88888888&key=88888888",
+        "https://cn.apihz.cn/api/caipiao/fucai3d.php?id=88888888&key=88888888&qh=",
+    ]
+    for attempt in range(3):
+        for u in urls:
+            try:
+                d = json.loads(_get(u, timeout=20, xhr=False))
+                if d.get("code") == 200 and d.get("qihao"):
+                    nums = [int(c) for c in str(d["number"]).replace("|", " ").split()
+                            if c.isdigit()]
+                    if len(nums) == 3:
+                        return {"issue": int(d["qihao"]), "nums": sorted(nums)}
+            except Exception as e:
+                print(f"APIHZ_TRY_FAIL: {type(e).__name__} {str(e)[:60]}")
+        if attempt < 2:
+            import time
+            time.sleep(5)
     return None
 
 
@@ -80,6 +89,8 @@ def fetch_draws(count=100):
                   "&transactionType=10001005&lotteryId=3&count=30")
     cwl = ("http://www.cwl.gov.cn/cwl_admin/front/cwlkj/search/kjxx/findDrawNotice"
            f"?name=3d&issueCount={count}")
+    cwl_https = ("https://www.cwl.gov.cn/cwl_admin/front/cwlkj/search/kjxx/findDrawNotice"
+                 f"?name=3d&issueCount={count}")
     mirror = ("https://raw.githubusercontent.com/wenjinliuu/lottery-data-repo"
               "/main/public_data/v2/draws/fc3d.json")
 
@@ -101,17 +112,18 @@ def fetch_draws(count=100):
                 import time
                 time.sleep(4)
 
-    # B. 福彩官网（境内直连，境外常 403）
+    # B. 福彩官网（境内直连，境外常 403；http / https 都试）
     if not best:
-        try:
-            out = _parse_generic(_get(cwl, "http://www.cwl.gov.cn/kjxx/3d/kjgg/"))
-            if len(out) >= 30:
-                print(f"SOURCE_OK: cwl rows={len(out)}")
-                best = out
-            else:
-                errors.append(f"cwl rows={len(out)}")
-        except Exception as e:
-            errors.append(f"cwl: {type(e).__name__} {e}")
+        for u, tag in ((cwl_https, "cwl-https"), (cwl, "cwl-http")):
+            try:
+                out = _parse_generic(_get(u, "http://www.cwl.gov.cn/kjxx/3d/kjgg/"))
+                if len(out) >= 30:
+                    print(f"SOURCE_OK: {tag} rows={len(out)}")
+                    best = out
+                    break
+                errors.append(f"{tag} rows={len(out)}")
+            except Exception as e:
+                errors.append(f"{tag}: {type(e).__name__} {e}")
 
     # C. 中彩网"今日各彩种"（只要最新几条）
     if not best:
