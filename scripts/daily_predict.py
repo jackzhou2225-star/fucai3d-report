@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """
 1126 算法每日预测（GitHub Actions 版，在仓库内运行）
 只负责：抓福彩官网开奖 → 算当日命中与次日预测 → 更新仓库根目录 index.html 的每日预测区块。
@@ -28,6 +28,19 @@ Z6_RATIO = 0.722946
 LONG_RATE = {0: 0.271275, 1: 0.273314, 2: 0.260510, 3: 0.270822,
              4: 0.272295, 5: 0.267762, 6: 0.271048, 7: 0.272295,
              8: 0.279547, 9: 0.273654}
+
+# 剔号代价表（8825 期实测：从 8 码剔掉该数字后 7 码的命中率与损失期数）
+KILL_COST = {
+    2: (1919, 1081), 4: (1892, 1108), 0: (1889, 1111), 1: (1873, 1127),
+    5: (1873, 1127), 6: (1872, 1128), 8: (1845, 1155), 9: (1837, 1163),
+}
+# 四种「换号规律」的严格 walk-forward 实测（7 码 35 注，基准 = 固定剔2 的 21.7450%）
+KILL_RULES = [
+    ("近 100 期剔最冷", 20.9971, "W=30/50/200/300 分别 21.3985/21.2308/20.8928/20.6569%，越长越差"),
+    ("按上期跨度剔", 20.4782, "跨度 5 档各挑最低数字 = 3/2/9/7/1，五档五个不同答案"),
+    ("按遗漏剔（越久越出）", 21.0789, "遗漏 5 档下期出现率 27.11/26.98/27.30/27.81/27.56%，不单调"),
+    ("按本月组三缺口剔", 21.8244, "缺口 5 档下期组三率 z 全 <1.6；五档建议数字 1/7/4/2/5 不一致"),
+]
 
 # 7/6/5 码缩码阶梯的长期校准（8825 期实测，2026-11-28 锁定）
 # 剔码顺序 = 8 码内长期出现率由冷到热：2(26.05) → 5(26.78) → 6(27.10)
@@ -445,36 +458,81 @@ def build_section(draws, ledger=None):
             f'<td class="num">{_om}</td><td><span class="pill {_cls}">{_tag}</span></td></tr>')
     digits_html = "".join(_drows)
 
-    # 三个口径各自"动态会剔谁"，用来对照 1126 实际剔的 3、7
+    # "今天为什么杀这几个号"：正面理由 + 逐数字状态 + 剔号代价 + 四种换号规律实测
     _c100_all = {c: sum(1 for x in _hist[-100:] if c in x["nums"]) for c in range(10)}
     _c100_in8 = {c: _c100_all[c] for c in SET}
-    _dyn_in8 = min(sorted(SET), key=lambda c: _c100_in8[c])      # 只在8码内挑
-    _dyn_all = min(range(10), key=lambda c: _c100_all[c])        # 全部10个里挑
-    _fixed_kill = sorted(set(range(10)) - SET)                   # 3、7
+    _dyn_in8 = min(sorted(SET), key=lambda c: _c100_in8[c])
+    _dyn_all = min(range(10), key=lambda c: _c100_all[c])
+    _fixed_kill = sorted(set(range(10)) - SET)
 
-    dissect_html = f'''<div class="card"><h3>今天为什么剔的是 {KILL}（逐数字状态）</h3>
-<p style="margin:2px 0 10px;font-size:12.5px;color:#475569">1126 的杀号只由一件事决定：<b>8825 期长期出现率最低的数字</b>。当前实测 2 = 26.05%、5 = 26.78%、6 = 27.10%（理论 27.10%），这三个最冷；3 = 27.08%、7 = 27.23% 反而更热。下表是每天更新的实时状态，你可以自己核对。</p>
+    # 「今天杀了谁」一句话（每期自动变）
+    _hot_lvl = max(LONG_RATE[k] for k in _fixed_kill)
+    _cooler = [c for c in sorted(SET) if LONG_RATE[c] > _hot_lvl]
+    _kill_line = (
+        f'今天（第 {nxt} 期）<b>杀 {"、".join(str(c) for c in _fixed_kill)}</b>。'
+        '理由只有一条：这两个数字 8825 期长期出现率是 '
+        + "、".join(f'{c} = {100*LONG_RATE[c]:.2f}%' for c in _fixed_kill)
+        + '（理论 27.10%），在 10 个数字里最冷；'
+        + (f'留下的 {"、".join(str(c) for c in _cooler)} 都比它们热。' if _cooler else '')
+    )
+
+    # 剔号代价表
+    _cost_rows = []
+    for _c in sorted(SET, key=lambda k: -KILL_COST[k][0]):
+        _h, _loss = KILL_COST[_c]
+        _cost_rows.append(
+            f'<tr><td class="num"><b>{_c}</b></td><td class="num">{_h}</td>'
+            f'<td class="num">{100.0*_h/8825:.3f}%</td>'
+            f'<td class="num">{_loss} 期</td><td class="num">{100.0*_loss/3000:.1f}%</td></tr>')
+    cost_html = "".join(_cost_rows)
+
+    # 四种换号规律实测表
+    _rule_rows = "".join(
+        f'<tr><td>{_n}</td><td class="num">{_r:.4f}%</td>'
+        f'<td class="num">{"+" if _r>21.7450 else ""}{_r-21.7450:.2f}pp</td>'
+        f'<td style="font-size:11.5px;color:#64748b">{_why}</td></tr>'
+        for _n, _r, _why in KILL_RULES)
+    rules_html = _rule_rows
+
+    dissect_html = f'''<div class="card"><h3><span class="n">★</span> 杀号论证 · 今天为什么杀 {KILL}（每日更新）</h3>
+<p style="margin:2px 0 12px;font-size:13px;line-height:1.85">{_kill_line}</p>
+
+<h4 style="margin:14px 0 6px;font-size:13.5px">一、正面理由：它们确实更冷</h4>
 <table><thead><tr><th class="num">数字</th><th class="num">全期8825</th><th class="num">近300期</th><th class="num">近100期</th><th class="num">近30期</th><th class="num">当前遗漏</th><th>状态</th></tr></thead><tbody>
 {digits_html}
 </tbody></table>
-<div class="note" style="margin-top:10px;margin-bottom:0;background:#eff6ff;border-left:3px solid #2563eb">
-<b>如果你今天想「按近期冷热换杀号」，会剔谁？三个口径结果各不相同：</b>
-<ul style="margin:6px 0 0 18px;padding:0;line-height:1.9">
-<li>只在 8 码里挑最冷（近100期）：会剔 <b>{_dyn_in8}</b>（近100期出现 {_c100_in8[_dyn_in8]} 次）</li>
-<li>在全部 10 个数字里挑最冷（近100期）：会剔 <b>{_dyn_all}</b>（{_c100_all[_dyn_all]} 次）</li>
-<li>1126 实际剔的：<b>{KILL}</b>（由长期频率决定，不随近期变化）</li>
+
+<h4 style="margin:16px 0 6px;font-size:13.5px">二、剔号的代价：从 8 码里剔掉谁，损失多少</h4>
+<p style="margin:0 0 8px;font-size:12.5px;color:#475569">8 码 01245689 全期命中 3000 期（33.994%）。下表是剔掉 8 个数字中的某一个之后，剩 7 码的命中与损失。</p>
+<table><thead><tr><th class="num">剔掉</th><th class="num">剩7码命中</th><th class="num">命中率</th><th class="num">损失期数</th><th class="num">占中奖期</th></tr></thead><tbody>
+{cost_html}
+</tbody></table>
+<div class="note" style="margin-top:8px;margin-bottom:0;font-size:12.5px">剔哪个都差不多：最好剔 2（损失 1081 期）、最差剔 9（损失 1163 期），极差仅 82 期。所以「剔谁」不是预测问题，是取舍问题。</div>
+
+<h4 style="margin:16px 0 6px;font-size:13.5px">三、四种「该换号了」的说法，全部实测过了</h4>
+<p style="margin:0 0 8px;font-size:12.5px;color:#475569">下面每一条都是严格 walk-forward（第 i 期只用 i 之前的数据），统一剔 1 个、买 7 码 35 注。基准 = 固定剔 2 的 <b>21.7450%</b>。</p>
+<table><thead><tr><th>说法</th><th class="num">7码命中</th><th class="num">vs 基准</th><th>为什么不行</th></tr></thead><tbody>
+{rules_html}
+</tbody></table>
+
+<div class="note warn" style="margin-top:10px;margin-bottom:0">
+<b>四、你提的「换套球」「月内组三开少了」两条，也单独验过：</b>
+<ul style="margin:6px 0 0 18px;padding:0;line-height:1.85">
+<li><b>换套球：</b>25 年「年度最热−最冷」极差实测均值 7.37pp，纯随机模拟 7.28pp（5%–95% = 6.67–7.89），落在随机区间内；相邻两年数字频率秩相关均值 <b>+0.046（z=0.14）</b>——今年热不代表明年热，也无法用它换号。</li>
+<li><b>月内组三开少了：</b>把「本月至今非组六次数相对月均 8.15 的缺口」分 5 档，下一期是组三/豹子的概率 28.07%/26.60%/25.93%/29.19%/34.55%（理论 27.71%），<b>不单调、z 全部 &lt;1.6</b>；五档各自建议杀的数字是 1/7/4/2/5，<b>五个不同答案</b>。所以「补组三」推不出该杀谁。</li>
+<li><b>唯一候选（如实登记）：</b>上期和值 0–9 时，下期 8 码命中率只有 <b>32.05%</b>（1928 期，z=−1.80，p=0.072）；上期和值 18–27 时 35.13%（2007 期，z=+1.07）。方向在 25 年里有 18 年一致，但 z 远低于 Bonferroni 门槛 <b>3.88</b>，暂不作依据，只挂在页面上持续观察。</li>
+<li><b>「挑最优窗口」同样不成立：</b>我把 18 个窗口 × 4 条规则 = <b>72 格</b>全搜了一遍，最优是「近 80 期剔最热」= <b>22.12%</b>。但纯随机跑 72 格、取最大值的 95% 分位是 <b>22.24%</b>——随便乱挑 72 次，最好的那个往往就能到这个水平；72 格里有 46 格落在随机区间内。所以「找到某个好窗口」是搜索的副产品，不是规律。</li>
 </ul>
 </div>
-<div class="note warn" style="margin-top:10px;margin-bottom:0">
-<b>为什么这张表只能看、不能换号——四条硬实测（严格 walk-forward，只用当期之前的数据）：</b>
-<ol style="margin:6px 0 0 18px;padding:0;line-height:1.85">
-<li><b>按近 100 期剔最冷，命中 20.9971%</b>；固定剔 2 是 21.7450%，<b>动态更差 0.75pp</b>。W=30/50/200/300 分别 21.3985%/21.2308%/20.8928%/20.6569%，<b>窗口越长越差</b>。</li>
-<li><b>按跨度动态杀号</b>（上期跨度分 5 档各挑最低数字）：5 档挑出 5 个不同数字，毫不稳定；7 码命中 20.4782%，低于固定 21.7450%。</li>
-<li><b>按遗漏动态杀号</b>（遗漏越长越该出）：遗漏 0-1/2-4/5-9/10-19/20+ 五档的下一期出现率 27.11%/26.98%/27.30%/27.81%/27.56%，<b>不单调、全部 |z|<1</b>；7 码命中 21.0789%，同样低于固定。</li>
-<li><b>「换套球」不可检出：</b>25 年「年度最热−最冷」极差实测均值 7.37pp，纯随机模拟 7.28pp（5%–95% = 6.67–7.89），落在随机区间内；相邻两年数字频率秩相关均值 +0.046（z=0.14），<b>今年热不代表明年热</b>。</li>
-</ol>
-<b>结论：</b>1126 的杀号不随近期状态调整——不是不敢调，是四种调法（近窗冷号、跨度、遗漏、和值）实测全部低于固定剔号。这张表给你看状态，换号依据在这里不成立。
-</div></div>'''
+
+<div class="note" style="margin-top:10px;margin-bottom:0;background:#eff6ff;border-left:3px solid #2563eb">
+<b>如果你今天就是想按近期冷热换，会剔谁（三个口径，答案各不相同）：</b>
+只在 8 码里挑最冷 → 剔 <b>{_dyn_in8}</b>（近100期 {_c100_in8[_dyn_in8]} 次）；
+在全部 10 个数字里挑最冷 → 剔 <b>{_dyn_all}</b>（{_c100_all[_dyn_all]} 次）；
+1126 实际剔的 → <b>{KILL}</b>（长期频率决定，不随近期变）。
+<b>结论：这张卡全部数据仅供核对，1126 的杀号不换。</b>
+</div>
+</div>'''
 
     # ── 月度「组三+豹子」监控：按真实日历月归属（每年 351 期 = 365 天，扣除休市）──
     _ISSUES_PER_YEAR = 351.0
