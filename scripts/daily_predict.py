@@ -407,6 +407,75 @@ def build_section(draws, ledger=None):
     ladder_html = "".join(_lrows)
     win7 = _ladder[7]
 
+
+    # ── 「今天为什么剔这几个号」：逐数字三窗口状态 + 动态会剔谁 ──
+    # 口径：这是观察仪表，不是换号依据。动态剔号已实测（cold100.md）：W=100 剔最冷 20.9971%，
+    # 固定剔 2 是 21.7450%，动态更差。所以页面必须写明「不换」。
+    _allr = {c: sum(1 for x in _hist if c in x["nums"]) / len(_hist) for c in range(10)}
+    def _winrate(c, n):
+        seg = _hist[-n:] if len(_hist) >= n else _hist
+        return 100.0 * sum(1 for x in seg if c in x["nums"]) / len(seg)
+    def _omission(c):
+        k = 0
+        for x in reversed(_hist):
+            if c in x["nums"]:
+                break
+            k += 1
+        return k
+    _drows = []
+    for _c in range(10):
+        _lr = 100.0 * _allr[_c]
+        _r100 = _winrate(_c, 100)
+        _r30 = _winrate(_c, 30)
+        _om = _omission(_c)
+        _in8 = _c in SET
+        if not _in8:
+            _tag, _cls = "已杀（8码外）", "p-bad"
+        elif abs(_r100 - _lr) <= 3:
+            _tag, _cls = "正常", "p-mid"
+        elif _r100 > _lr:
+            _tag, _cls = "近期偏热", "p-ok"
+        else:
+            _tag, _cls = "近期偏冷", "p-bad"
+        _bg = "" if _in8 else ' style="background:#fef2f2"'
+        _drows.append(
+            f'<tr{_bg}><td class="num"><b>{_c}</b></td>'
+            f'<td class="num">{_lr:.2f}%</td><td class="num">{_winrate(_c, 300):.2f}%</td>'
+            f'<td class="num">{_r100:.2f}%</td><td class="num">{_r30:.2f}%</td>'
+            f'<td class="num">{_om}</td><td><span class="pill {_cls}">{_tag}</span></td></tr>')
+    digits_html = "".join(_drows)
+
+    # 三个口径各自"动态会剔谁"，用来对照 1126 实际剔的 3、7
+    _c100_all = {c: sum(1 for x in _hist[-100:] if c in x["nums"]) for c in range(10)}
+    _c100_in8 = {c: _c100_all[c] for c in SET}
+    _dyn_in8 = min(sorted(SET), key=lambda c: _c100_in8[c])      # 只在8码内挑
+    _dyn_all = min(range(10), key=lambda c: _c100_all[c])        # 全部10个里挑
+    _fixed_kill = sorted(set(range(10)) - SET)                   # 3、7
+
+    dissect_html = f'''<div class="card"><h3>今天为什么剔的是 {KILL}（逐数字状态）</h3>
+<p style="margin:2px 0 10px;font-size:12.5px;color:#475569">1126 的杀号只由一件事决定：<b>8825 期长期出现率最低的数字</b>。当前实测 2 = 26.05%、5 = 26.78%、6 = 27.10%（理论 27.10%），这三个最冷；3 = 27.08%、7 = 27.23% 反而更热。下表是每天更新的实时状态，你可以自己核对。</p>
+<table><thead><tr><th class="num">数字</th><th class="num">全期8825</th><th class="num">近300期</th><th class="num">近100期</th><th class="num">近30期</th><th class="num">当前遗漏</th><th>状态</th></tr></thead><tbody>
+{digits_html}
+</tbody></table>
+<div class="note" style="margin-top:10px;margin-bottom:0;background:#eff6ff;border-left:3px solid #2563eb">
+<b>如果你今天想「按近期冷热换杀号」，会剔谁？三个口径结果各不相同：</b>
+<ul style="margin:6px 0 0 18px;padding:0;line-height:1.9">
+<li>只在 8 码里挑最冷（近100期）：会剔 <b>{_dyn_in8}</b>（近100期出现 {_c100_in8[_dyn_in8]} 次）</li>
+<li>在全部 10 个数字里挑最冷（近100期）：会剔 <b>{_dyn_all}</b>（{_c100_all[_dyn_all]} 次）</li>
+<li>1126 实际剔的：<b>{KILL}</b>（由长期频率决定，不随近期变化）</li>
+</ul>
+</div>
+<div class="note warn" style="margin-top:10px;margin-bottom:0">
+<b>为什么这张表只能看、不能换号——四条硬实测（严格 walk-forward，只用当期之前的数据）：</b>
+<ol style="margin:6px 0 0 18px;padding:0;line-height:1.85">
+<li><b>按近 100 期剔最冷，命中 20.9971%</b>；固定剔 2 是 21.7450%，<b>动态更差 0.75pp</b>。W=30/50/200/300 分别 21.3985%/21.2308%/20.8928%/20.6569%，<b>窗口越长越差</b>。</li>
+<li><b>按跨度动态杀号</b>（上期跨度分 5 档各挑最低数字）：5 档挑出 5 个不同数字，毫不稳定；7 码命中 20.4782%，低于固定 21.7450%。</li>
+<li><b>按遗漏动态杀号</b>（遗漏越长越该出）：遗漏 0-1/2-4/5-9/10-19/20+ 五档的下一期出现率 27.11%/26.98%/27.30%/27.81%/27.56%，<b>不单调、全部 |z|<1</b>；7 码命中 21.0789%，同样低于固定。</li>
+<li><b>「换套球」不可检出：</b>25 年「年度最热−最冷」极差实测均值 7.37pp，纯随机模拟 7.28pp（5%–95% = 6.67–7.89），落在随机区间内；相邻两年数字频率秩相关均值 +0.046（z=0.14），<b>今年热不代表明年热</b>。</li>
+</ol>
+<b>结论：</b>1126 的杀号不随近期状态调整——不是不敢调，是四种调法（近窗冷号、跨度、遗漏、和值）实测全部低于固定剔号。这张表给你看状态，换号依据在这里不成立。
+</div></div>'''
+
     # ── 月度「组三+豹子」监控：按真实日历月归属（每年 351 期 = 365 天，扣除休市）──
     _ISSUES_PER_YEAR = 351.0
     def _month_of_issue(seq):
@@ -475,6 +544,7 @@ def build_section(draws, ledger=None):
 5 码 <b class="mono">{_ladder[5]}</b>（{100*LADDER_LONG[5]:.2f}% / {_wlab} {_r100c:.1f}%）为省成本档，按预算自行取舍。
 </div>
 </div>
+{dissect_html}
 <div class="card">
 <h3>{today} · 第 {last["issue"]} 期开奖结果</h3>
 <table><thead><tr><th>期号</th><th class="num">开奖号</th><th class="num">形态</th><th class="num">01245689</th><th class="num">结果</th></tr></thead><tbody>
