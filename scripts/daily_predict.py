@@ -374,18 +374,43 @@ def build_section(draws, ledger=None):
     _hist = ledger if (ledger and len(ledger) >= 100) else draws
     _w = min(100, len(_hist))
     _seg = _hist[-_w:]
-    for _k in (7, 6, 5):
+
+    def _roll3(cs):
+        """该码集在全量台账上的「3 期内至少中一次」实测率"""
+        w = 0
+        for i in range(2, len(_hist)):
+            if any(len(set(_hist[j]["nums"])) == 3 and set(_hist[j]["nums"]) <= cs
+                   for j in range(i - 2, i + 1)):
+                w += 1
+        return 100.0 * w / (len(_hist) - 2) if len(_hist) > 2 else 0.0
+
+    def _maxstreak(cs):
+        """该码集在全量台账上的最长连续未中（期）"""
+        ml = cur = 0
+        for x in _hist:
+            if len(set(x["nums"])) == 3 and set(x["nums"]) <= cs:
+                cur = 0
+            else:
+                cur += 1
+                if cur > ml:
+                    ml = cur
+        return ml
+
+    for _k in (8, 7, 6, 5):
         _c = _ladder[_k]
         _cs = set(int(x) for x in _c)
-        _zhu = len(list(combinations(sorted(_cs), 3)))
         _h100 = sum(1 for x in _seg if len(set(x["nums"])) == 3 and set(x["nums"]) <= _cs)
-        _r = 100.0 * LADDER_LONG[_k]                       # 全期用 8825 期锁定值
+        _r = 33.9943 if _k == 8 else 100.0 * LADDER_LONG[_k]   # 8 码用实测 3000/8825
         _r100 = 100.0 * _h100 / _w
-        _kill = "、".join(str(c) for c in sorted(SET - _cs))
+        _kill = "、".join(str(c) for c in sorted(SET - _cs)) or "—"
+        _hl = ' style="background:#f0fdf6"' if _k == 8 else ""
         _lrows.append(
-            f'<tr><td><b>{_k} 码</b></td><td class="mono"><b>{_c}</b></td>'
+            f'<tr{_hl}><td><b>{_k} 码</b>{"（基准）" if _k == 8 else ""}</td>'
+            f'<td class="mono"><b>{_c}</b></td>'
             f'<td>杀 {_kill}</td>'
-            f'<td class="num">{_r:.2f}%</td><td class="num">{_r100:.1f}%</td></tr>')
+            f'<td class="num">{_r:.2f}%</td><td class="num">{_r100:.1f}%</td>'
+            f'<td class="num">{_roll3(_cs):.1f}%</td>'
+            f'<td class="num">{_maxstreak(_cs)} 期</td></tr>')
     _wlab = f"近{_w}期"
     _r100map = {}
     for _k in (7, 6, 5):
@@ -432,18 +457,19 @@ def build_section(draws, ledger=None):
     )
     return f'''<!--DAILY-START-->
 <section id="daily">
-<h2><span class="n">★</span>每日预测 · 1126 算法（自动更新）</h2>
-<p class="lede">每天 22:00 / 23:00 自动抓取福彩开奖，结算当日、追加进下方逐期台账，并给出次日预测。本区块由定时任务维护。</p>
+<h2><span class="n">★</span>今日推荐 · 1126 算法（自动更新）</h2>
+<p class="lede">每天 22:00 / 23:00 自动抓取福彩开奖，结算当日、追加进下方逐期台账，并给出下一期选码。本区块由定时任务维护。</p>
 <p class="lede" style="margin-top:-6px"><b>最后更新时间：{stamp}（北京时间）</b>｜本次已结算第 {last["issue"]} 期。若此时间距今超过 30 小时，说明定时任务未跑通。</p>
 <div class="card" style="border:2px solid #2563eb">
-<h3><span class="n">★</span> 今日推荐 · 7 码 / 6 码 / 5 码（第 {nxt} 期）</h3>
+<h3><span class="n">★</span> 第 {nxt} 期（{tomorrow} 21:15 开奖）· 买这几个码</h3>
 <p style="margin:2px 0 10px;font-size:12.5px;color:#475569">由 1126 的固定 8 码 <b class="mono">01245689</b> 逐级剔码得到，剔除顺序按各数字 8825 期长期出现率由冷到热（无前视偏差）。</p>
-<table><thead><tr><th>档位</th><th>买码</th><th>剔除</th><th class="num">全期命中</th><th class="num">{_wlab}</th></tr></thead><tbody>
+<table><thead><tr><th>档位</th><th>买码</th><th>剔除</th><th class="num">全期命中</th><th class="num">{_wlab}</th><th class="num">3期内中一次</th><th class="num">最长连亏</th></tr></thead><tbody>
 {ladder_html}
 </tbody></table>
 <div class="note" style="margin-top:10px;margin-bottom:0;background:#eff6ff;border-left:3px solid #2563eb">
 <b>今日首选 7 码 <span class="mono">{win7}</span></b>，全期命中 {100*LADDER_LONG[7]:.2f}%、
-{_wlab} {_r100a:.1f}%；要贴着 1126 全量打就仍用 8 码 <b class="mono">01245689</b>。
+{_wlab} {_r100a:.1f}%、3 期内中一次 {_roll3(set(int(c) for c in _ladder[7])):.1f}%；
+要贴着 1126 全量打就仍用 8 码 <b class="mono">01245689</b>（3 期内中一次 70.9%，最长连亏 25 期）。
 6 码 <b class="mono">{_ladder[6]}</b>（{100*LADDER_LONG[6]:.2f}% / {_wlab} {_r100b:.1f}%）、
 5 码 <b class="mono">{_ladder[5]}</b>（{100*LADDER_LONG[5]:.2f}% / {_wlab} {_r100c:.1f}%）为省成本档，按预算自行取舍。
 </div>
@@ -456,17 +482,13 @@ def build_section(draws, ledger=None):
 </div>
 {monthly_html}
 <div class="card">
-<h3>次日预测 · 第 {nxt} 期（{tomorrow} 21:15 开奖）</h3>
+<h3>出票与监控（第 {nxt} 期）</h3>
 <table><thead><tr><th>项目</th><th>内容</th></tr></thead><tbody>
-<tr style="background:#f0fdf6"><td><b>选码</b></td><td class="mono"><b>01245689</b>（固定 8 码，每期不变）</td></tr>
 <tr style="background:#f0fdf6"><td><b>出票拆单</b></td><td><b>不要打 1 张 8 码复式，按下面 14 个 4 码组去打</b>（零重复零遗漏；整张 8 码复式只要其中 1 注被限号，官方规则整张不出票）。<div style="margin-top:8px"><b>打法A · 限号风险最小</b></div><div class="mono" style="margin-top:4px">{tickets_html}</div></td></tr>
 <tr><td></td><td><b>打法B · 过单票门槛</b>：山东 2024 公告要求组选派奖单票≥20 元才参与，打法A 的小票不达标；用这 4 张。<table style="margin-top:6px"><thead><tr><th>票</th><th>4 码组合</th><th class="num">近30期</th></tr></thead><tbody>{groups_html}</tbody></table><div style="margin-top:5px;opacity:.75;font-size:11.5px">两种打法覆盖完全相同的组合；A 更抗限号，B 更抗门槛，按本省公告选一种，<b>不要两种同时打</b>。</div></td></tr>
 <tr style="{bonus_bg}"><td><b>派奖监控</b></td><td>{bonus_txt}</td></tr>
-<tr><td><b>杀号</b></td><td>杀 {KILL}（实测各数字出现率：{kill_txt}）</td></tr>
 <tr><td><b>数字 2 状态</b></td><td>{two_state}（长期含2率 {100*r2:.2f}% vs 理论 27.10%，8码已含2）</td></tr>
-<tr><td><b>加强过滤（9注）</b></td><td class="mono">{"、".join(notes9)}</td></tr>
 <tr><td><b>近 10 期</b></td><td>8 码真兑奖命中 {h10}/10；近 30 期含2 {has2_30}/30、连号 {adj30}/30</td></tr>
-<tr><td><b>3 期内中一次</b></td><td>{roll3:.2f}%（滚动窗口，理论 {100*p3:.2f}%）</td></tr>
 <tr><td><b>本期可跳过？</b></td><td>不能。近 {n_all} 期组三/豹子 {n_zh3} 期（长期 27.71%），这些期必挂；但形态不可预判（卡方 0.113，前后半最优窗口不一致），跳期等于随机少买，实测无收益</td></tr>
 <tr><td><b>倍投上限</b></td><td>单期赔付 302 元；盘口单期赔付上限若为 3000 元，约 9 倍撞线 → <b>不要倍投超过 10 倍</b>，否则触发庄家限额拒单</td></tr>
 <tr style="background:#fffbf0"><td><b>保本赔付额</b></td><td><b>{pstar:.0f} 元</b>（= 成本 112 元 ÷ 长期覆盖率 {100*LONG_COV:.2f}%，基于 8825 期全历史 2002-2026）。低于此数每期亏，高于此数每期赚。（当前窗口 {n_all} 期实测 {100*cov_win:.2f}%，仅供对照）</td></tr>
