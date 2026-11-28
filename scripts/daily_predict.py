@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """
 1126 算法每日预测（GitHub Actions 版，在仓库内运行）
 只负责：抓福彩官网开奖 → 算当日命中与次日预测 → 更新仓库根目录 index.html 的每日预测区块。
@@ -32,6 +32,10 @@ LONG_RATE = {0: 0.271275, 1: 0.273314, 2: 0.260510, 3: 0.270822,
 # 7/6/5 码缩码阶梯的长期校准（8825 期实测，2026-11-28 锁定）
 # 剔码顺序 = 8 码内长期出现率由冷到热：2(26.05) → 5(26.78) → 6(27.10)
 LADDER_LONG = {7: 0.217450, 6: 0.122833, 5: 0.061756}
+# 各档「3 期内至少中一次」与「最长连亏」（8825 期全历史实测，2026-11-28 锁定）
+# 注意：不能用 data.js 的台账（仅 317 期）现算，否则会把 317 期的结果标成全历史。
+LADDER_ROLL3 = {8: 70.9396, 7: 51.4224, 6: 32.4153, 5: 17.4770}
+LADDER_STREAK = {8: 25, 7: 32, 6: 61, 5: 85}
 # 月度「组三+豹子」长期基准（300 个自然月，8825 期）
 MONTH_NON6_MEAN = 8.15
 
@@ -375,27 +379,6 @@ def build_section(draws, ledger=None):
     _w = min(100, len(_hist))
     _seg = _hist[-_w:]
 
-    def _roll3(cs):
-        """该码集在全量台账上的「3 期内至少中一次」实测率"""
-        w = 0
-        for i in range(2, len(_hist)):
-            if any(len(set(_hist[j]["nums"])) == 3 and set(_hist[j]["nums"]) <= cs
-                   for j in range(i - 2, i + 1)):
-                w += 1
-        return 100.0 * w / (len(_hist) - 2) if len(_hist) > 2 else 0.0
-
-    def _maxstreak(cs):
-        """该码集在全量台账上的最长连续未中（期）"""
-        ml = cur = 0
-        for x in _hist:
-            if len(set(x["nums"])) == 3 and set(x["nums"]) <= cs:
-                cur = 0
-            else:
-                cur += 1
-                if cur > ml:
-                    ml = cur
-        return ml
-
     for _k in (8, 7, 6, 5):
         _c = _ladder[_k]
         _cs = set(int(x) for x in _c)
@@ -409,8 +392,8 @@ def build_section(draws, ledger=None):
             f'<td class="mono"><b>{_c}</b></td>'
             f'<td>杀 {_kill}</td>'
             f'<td class="num">{_r:.2f}%</td><td class="num">{_r100:.1f}%</td>'
-            f'<td class="num">{_roll3(_cs):.1f}%</td>'
-            f'<td class="num">{_maxstreak(_cs)} 期</td></tr>')
+            f'<td class="num">{LADDER_ROLL3[_k]:.1f}%</td>'
+            f'<td class="num">{LADDER_STREAK[_k]} 期</td></tr>')
     _wlab = f"近{_w}期"
     _r100map = {}
     for _k in (7, 6, 5):
@@ -468,7 +451,7 @@ def build_section(draws, ledger=None):
 </tbody></table>
 <div class="note" style="margin-top:10px;margin-bottom:0;background:#eff6ff;border-left:3px solid #2563eb">
 <b>今日首选 7 码 <span class="mono">{win7}</span></b>，全期命中 {100*LADDER_LONG[7]:.2f}%、
-{_wlab} {_r100a:.1f}%、3 期内中一次 {_roll3(set(int(c) for c in _ladder[7])):.1f}%；
+{_wlab} {_r100a:.1f}%、3 期内中一次 {LADDER_ROLL3[7]:.1f}%；
 要贴着 1126 全量打就仍用 8 码 <b class="mono">01245689</b>（3 期内中一次 70.9%，最长连亏 25 期）。
 6 码 <b class="mono">{_ladder[6]}</b>（{100*LADDER_LONG[6]:.2f}% / {_wlab} {_r100b:.1f}%）、
 5 码 <b class="mono">{_ladder[5]}</b>（{100*LADDER_LONG[5]:.2f}% / {_wlab} {_r100c:.1f}%）为省成本档，按预算自行取舍。
