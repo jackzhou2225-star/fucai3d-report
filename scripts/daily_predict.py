@@ -36,6 +36,8 @@ LADDER_LONG = {7: 0.217450, 6: 0.122833, 5: 0.061756}
 # 注意：不能用 data.js 的台账（仅 317 期）现算，否则会把 317 期的结果标成全历史。
 LADDER_ROLL3 = {8: 70.9396, 7: 51.4224, 6: 32.4153, 5: 17.4770}
 LADDER_STREAK = {8: 25, 7: 32, 6: 61, 5: 85}
+# 平均多久中一次（8825 期 ÷ 命中数）
+LADDER_GAP = {8: 2.9, 7: 4.6, 6: 8.1, 5: 16.2}
 # 月度「组三+豹子」长期基准（300 个自然月，8825 期）
 MONTH_NON6_MEAN = 8.15
 
@@ -393,7 +395,8 @@ def build_section(draws, ledger=None):
             f'<td>杀 {_kill}</td>'
             f'<td class="num">{_r:.2f}%</td><td class="num">{_r100:.1f}%</td>'
             f'<td class="num">{LADDER_ROLL3[_k]:.1f}%</td>'
-            f'<td class="num">{LADDER_STREAK[_k]} 期</td></tr>')
+            f'<td class="num">{LADDER_STREAK[_k]} 期</td>'
+            f'<td class="num">{LADDER_GAP[_k]} 期</td></tr>')
     _wlab = f"近{_w}期"
     _r100map = {}
     for _k in (7, 6, 5):
@@ -446,9 +449,21 @@ def build_section(draws, ledger=None):
 <div class="card" style="border:2px solid #2563eb">
 <h3><span class="n">★</span> 第 {nxt} 期（{tomorrow} 21:15 开奖）· 买这几个码</h3>
 <p style="margin:2px 0 10px;font-size:12.5px;color:#475569">由 1126 的固定 8 码 <b class="mono">01245689</b> 逐级剔码得到，剔除顺序按各数字 8825 期长期出现率由冷到热（无前视偏差）。</p>
-<table><thead><tr><th>档位</th><th>买码</th><th>剔除</th><th class="num">全期命中</th><th class="num">{_wlab}</th><th class="num">3期内中一次</th><th class="num">最长连亏</th></tr></thead><tbody>
+<table><thead><tr><th>档位</th><th>买码</th><th>剔除</th><th class="num">全期命中</th><th class="num">{_wlab}</th><th class="num">3期内中一次</th><th class="num">最长连亏</th><th class="num">平均几期中一次</th></tr></thead><tbody>
 {ladder_html}
 </tbody></table>
+<div class="note warn" style="margin-top:10px;margin-bottom:0">
+<b>「剔除」这一列不是预测，是省钱档。论证六条（8825 期实测）：</b>
+<ol style="margin:6px 0 0 18px;padding:0;line-height:1.85">
+<li><b>杀冷号没有预测力。</b>每期取前 30 期出现最少的数字当「冷号」，它下一期仍出现 <b>27.11%</b>，与纯随机 27.10% 无差别（窗口 50/100 分别 27.37%/27.31%，同样无差别）。所以任何「杀冷号」都不成立。</li>
+<li><b>剔号的真实代价是误杀。</b>8 码全期中奖 3000 期；剔掉 2 会误杀 <b>1081 期（占全部中奖期的 36.0%）</b>，剩 1919 期 = 21.75%。这就是 7 码只有 8 码六成半的原因，不是「更准」。</li>
+<li><b>「杀 3 杀 7 留 2」在频率上站不住。</b>实测 2 是<b>最冷</b>的数字（26.05%），3 是 27.08%、7 是 27.23%，都比 2 热。留最冷的、杀更热的，与「杀冷号」逻辑正好相反。1126 的 47.02% 落在 45 个 8 码集合的第 13 位（72.4 百分位），属正常浮动。</li>
+<li><b>动态剔最冷号反而更差。</b>每期现算最冷号再剔，7 码命中 <b>21.27%</b>，低于固定剔 2 的 21.75%。说明「按冷号换着剔」是负收益。</li>
+<li><b>换哪个被剔都一样。</b>8 码剔 1 个共 9 种，最好剔 2（1919 期）、最差剔 9（1837 期），极差 0.93 个百分点，全在噪声内。所以「剔哪个」不是选择，是取舍：剔得越少命中越高，7 码必然比 8 码低 12.2 个点。</li>
+<li><b>误杀的代价可以量化。</b>8 码平均 2.9 期中一次，7 码 4.6 期、6 码 8.1 期、5 码 16.2 期。5 码省下的钱，换来的是「平均等 16 期才中一次」，最长要等 85 期。</li>
+</ol>
+<b>结论：</b>7/6/5 码的价值只有一条——同样的钱买更少的注数，代价是命中率同比降。它们不是「更准的杀号」，不能拿它当缩水依据。
+</div>
 <div class="note" style="margin-top:10px;margin-bottom:0;background:#eff6ff;border-left:3px solid #2563eb">
 <b>今日首选 7 码 <span class="mono">{win7}</span></b>，全期命中 {100*LADDER_LONG[7]:.2f}%、
 {_wlab} {_r100a:.1f}%、3 期内中一次 {LADDER_ROLL3[7]:.1f}%；
