@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """
 1126 算法每日预测（GitHub Actions 版，在仓库内运行）
 只负责：抓福彩官网开奖 → 算当日命中与次日预测 → 更新仓库根目录 index.html 的每日预测区块。
@@ -216,6 +216,28 @@ def _bj_now():
     return utc.astimezone(datetime.timezone(datetime.timedelta(hours=8))).replace(tzinfo=None)
 
 
+def _bonus_info(day):
+    """派奖期监控：今日是否落在现金加奖窗口；不在则给出下一个窗口的开启日与天数。
+    窗口表见 bonus_window.py（与 meeting3/bonus_scan.md 同源，省市公告实证）。
+    返回 (in|out, 窗口名, 距今天数, 开启日, 样本说明)。"""
+    try:
+        from bonus_window import bonus_window, WINDOWS
+    except Exception as e:
+        print(f"BONUS_SKIP: {type(e).__name__}: {e}")
+        return None
+    cash = {w[0] for w in WINDOWS if w[3]}
+    note = "少量"
+    hit, name = bonus_window(day)
+    if hit and name in cash:
+        return ("in", name, 0, day, note)
+    for i in range(1, 400):
+        d = day + datetime.timedelta(days=i)
+        h, n = bonus_window(d)
+        if h and n in cash:
+            return ("out", n, i, d, note)
+    return None
+
+
 def build_section(draws):
     last = draws[-1]
     nums = last["nums"]
@@ -276,6 +298,23 @@ def build_section(draws):
     tickets_html = "".join(tk_cells)
     t_total = sum(t_hits30)
 
+    # ── 派奖期监控：现金加奖窗口内组选6 奖金更高，是唯一能减亏的时段 ──
+    bi = _bonus_info(draw_day)
+    if bi is None:
+        bonus_txt = "窗口表未加载（脚本缺 bonus_window.py）"
+        bonus_bg = ""
+    elif bi[0] == "in":
+        bonus_txt = ("<b style='color:#b45309'>当前落在 %s</b>：该档期历年有省份对组选6 现金加奖"
+                     "（各省独立、额度 200–273 元）。<b>开奖前先核对本省福彩公告</b>；"
+                     "本省未派奖时按基准 173 元。此档期是全年少亏的时段，其余时间不建议追。" %
+                     (bi[1]))
+        bonus_bg = "background:#fffbeb"
+    else:
+        bonus_txt = ("当前为常规期（组选6 单注 173 元）。下一个证实现金加奖窗口：<b>%s</b>，"
+                     "约 %d 天后（%s 开启）。该档期历年组选6 上调至 200–273 元，"
+                     "仍有缺口但亏得最少。" % (bi[1], bi[2], bi[3].strftime("%Y-%m-%d")))
+        bonus_bg = ""
+
     # ── 全部指标改为从抓到的真实开奖数据现算，不再写死，保证与本地算法同步 ──
     n_all = len(draws)
     z6_all = sum(1 for d in draws if len(set(d["nums"])) == 3)
@@ -310,6 +349,7 @@ def build_section(draws):
 <table><thead><tr><th>项目</th><th>内容</th></tr></thead><tbody>
 <tr style="background:#f0fdf6"><td><b>选码</b></td><td class="mono"><b>01245689</b>（固定 8 码，56 注 / 112 元，每期不变）</td></tr>
 <tr style="background:#f0fdf6"><td><b>出票拆单</b></td><td><b>不要打 1 张 8 码复式，打 14 张 4 码小复式</b>（每张 4 注 / 8 元，共 56 注 / 112 元，零重复零遗漏）。<div style="margin-top:7px">{tickets_html}</div><div style="margin-top:4px;opacity:.75;font-size:11.5px">近 30 期这 14 张合计命中 {t_total} 注。整张 8 码复式只要 56 注里 1 注被单注限号，官方规则是<b>整张不出票</b>；拆开后被限只损 1 张 8 元。</div></td></tr>
+<tr style="{bonus_bg}"><td><b>派奖监控</b></td><td>{bonus_txt}</td></tr>
 <tr><td><b>杀号</b></td><td>杀 {KILL}（实测各数字出现率：{kill_txt}）</td></tr>
 <tr><td><b>数字 2 状态</b></td><td>{two_state}（长期含2率 {100*r2:.2f}% vs 理论 27.10%，8码已含2）</td></tr>
 <tr><td><b>加强过滤（9注）</b></td><td class="mono">{"、".join(notes9)}</td></tr>
