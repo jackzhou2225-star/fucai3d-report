@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """
 1126 算法每日预测（GitHub Actions 版，在仓库内运行）
 只负责：抓福彩官网开奖 → 算当日命中与次日预测 → 更新仓库根目录 index.html 的每日预测区块。
@@ -28,6 +28,11 @@ Z6_RATIO = 0.722946
 LONG_RATE = {0: 0.271275, 1: 0.273314, 2: 0.260510, 3: 0.270822,
              4: 0.272295, 5: 0.267762, 6: 0.271048, 7: 0.272295,
              8: 0.279547, 9: 0.273654}
+# 近 300 期（截至 2026317）的出现率，锁定值——页面「近300期」列用它，
+# 因为生产环境 data.js 台账期数会变，现算会跟着漂。
+RATE300 = {0: 0.256667, 1: 0.270000, 2: 0.343333, 3: 0.230000,
+           4: 0.266667, 5: 0.253333, 6: 0.270000, 7: 0.223333,
+           8: 0.313333, 9: 0.283333}
 
 # 剔号代价表（8825 期实测：从 8 码剔掉该数字后 7 码的命中率与损失期数）
 KILL_COST = {
@@ -424,7 +429,6 @@ def build_section(draws, ledger=None):
     # ── 「今天为什么剔这几个号」：逐数字三窗口状态 + 动态会剔谁 ──
     # 口径：这是观察仪表，不是换号依据。动态剔号已实测（cold100.md）：W=100 剔最冷 20.9971%，
     # 固定剔 2 是 21.7450%，动态更差。所以页面必须写明「不换」。
-    _allr = {c: sum(1 for x in _hist if c in x["nums"]) / len(_hist) for c in range(10)}
     def _winrate(c, n):
         seg = _hist[-n:] if len(_hist) >= n else _hist
         return 100.0 * sum(1 for x in seg if c in x["nums"]) / len(seg)
@@ -437,7 +441,8 @@ def build_section(draws, ledger=None):
         return k
     _drows = []
     for _c in range(10):
-        _lr = 100.0 * _allr[_c]
+        # 全期列必须用 8825 期锁定值，不能用 _hist（只有 317 期台账）
+        _lr = 100.0 * LONG_RATE[_c]
         _r100 = _winrate(_c, 100)
         _r30 = _winrate(_c, 30)
         _om = _omission(_c)
@@ -453,7 +458,7 @@ def build_section(draws, ledger=None):
         _bg = "" if _in8 else ' style="background:#fef2f2"'
         _drows.append(
             f'<tr{_bg}><td class="num"><b>{_c}</b></td>'
-            f'<td class="num">{_lr:.2f}%</td><td class="num">{_winrate(_c, 300):.2f}%</td>'
+            f'<td class="num">{_lr:.2f}%</td><td class="num">{100.0*RATE300[_c]:.2f}%</td>'
             f'<td class="num">{_r100:.2f}%</td><td class="num">{_r30:.2f}%</td>'
             f'<td class="num">{_om}</td><td><span class="pill {_cls}">{_tag}</span></td></tr>')
     digits_html = "".join(_drows)
