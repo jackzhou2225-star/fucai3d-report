@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """
 1126 算法每日预测（GitHub Actions 版，在仓库内运行）
 只负责：抓福彩官网开奖 → 算当日命中与次日预测 → 更新仓库根目录 index.html 的每日预测区块。
@@ -63,6 +63,17 @@ LADDER_ROLL3 = {8: 70.9396, 7: 51.4224, 6: 32.4153, 5: 17.4770}
 LADDER_STREAK = {8: 25, 7: 32, 6: 61, 5: 85}
 # 平均多久中一次（8825 期 ÷ 命中数）
 LADDER_GAP = {8: 2.9, 7: 4.6, 6: 8.1, 5: 16.2}
+# ── UI 常量自检（对应 task-master #7：evidence gate 接入每日流程）──
+# 所有写进页面的硬编码数字，部署前必须由 verify_constants.py 复算通过。
+try:
+    assert abs(LONG_COV - 0.339943) < 1e-6, "LONG_COV 与 8825 期实测不符"
+    assert abs(sum(LONG_RATE.values()) / 10 - 0.2712522) < 1e-5, "LONG_RATE 均值异常"
+    assert LADDER_GAP[8] < LADDER_GAP[7] < LADDER_GAP[6] < LADDER_GAP[5], "阶梯间隔必须递增"
+    assert LADDER_STREAK[8] < LADDER_STREAK[7] < LADDER_STREAK[6] < LADDER_STREAK[5], "最长连亏必须递增"
+    assert abs(100 * LONG_RATE[2] - 26.05) < 0.02, "数字2长期率应为 26.05%"
+    assert abs(100 * LONG_RATE[8] - 27.95) < 0.02, "数字8长期率应为 27.95%"
+except AssertionError as _e:
+    raise RuntimeError(f"[常量自检失败] {_e} —— 请先跑 verify_constants.py")
 # 月度「组三+豹子」长期基准（300 个自然月，8825 期）
 MONTH_NON6_MEAN = 8.15
 
