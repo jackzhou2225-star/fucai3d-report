@@ -1,0 +1,191 @@
+{
+ "updated": "2026-11-28 22:40",
+ "total": 111,
+ "passed": 0,
+ "shadow": 0,
+ "median_delta": -0.48,
+ "max_delta": 0.64,
+ "over_g6": 0,
+ "top": [
+  {
+   "name": "big_split8",
+   "rate": 34.6306,
+   "delta": 0.636,
+   "half": [
+    34.82,
+    32.58
+   ],
+   "year_wins": "0/0",
+   "notes": 56.0
+  },
+  {
+   "name": "shi_split8",
+   "rate": 34.5225,
+   "delta": 0.528,
+   "half": [
+    34.79,
+    32.58
+   ],
+   "year_wins": "0/0",
+   "notes": 56.0
+  },
+  {
+   "name": "road_bucket8",
+   "rate": 34.4024,
+   "delta": 0.408,
+   "half": [
+    35.66,
+    32.43
+   ],
+   "year_wins": "0/0",
+   "notes": 56.0
+  },
+  {
+   "name": "F1_road",
+   "rate": 34.4024,
+   "delta": 0.408,
+   "half": [
+    35.66,
+    32.43
+   ],
+   "year_wins": "10/25",
+   "notes": 56.0
+  },
+  {
+   "name": "consec_form56",
+   "rate": 34.3784,
+   "delta": 0.384,
+   "half": [
+    33.95,
+    34.99
+   ],
+   "year_wins": "0/0",
+   "notes": 56.0
+  },
+  {
+   "name": "F6_shi",
+   "rate": 34.2823,
+   "delta": 0.288,
+   "half": [
+    34.97,
+    32.58
+   ],
+   "year_wins": "13/25",
+   "notes": 56.0
+  },
+  {
+   "name": "X_gt_odd_rep_8",
+   "rate": 34.1261,
+   "delta": 0.132,
+   "half": [
+    34.36,
+    32.46
+   ],
+   "year_wins": "12/25",
+   "notes": 56.0
+  },
+  {
+   "name": "tail_bucket8",
+   "rate": 34.1021,
+   "delta": 0.108,
+   "half": [
+    33.44,
+    34.4
+   ],
+   "year_wins": "0/0",
+   "notes": 56.0
+  },
+  {
+   "name": "F1_tail",
+   "rate": 34.1021,
+   "delta": 0.108,
+   "half": [
+    33.44,
+    34.4
+   ],
+   "year_wins": "9/25",
+   "notes": 56.0
+  },
+  {
+   "name": "F2_sumxbig",
+   "rate": 34.0901,
+   "delta": 0.096,
+   "half": [
+    33.72,
+    33.84
+   ],
+   "year_wins": "14/25",
+   "notes": 56.0
+  },
+  {
+   "name": "F6_road",
+   "rate": 34.0541,
+   "delta": 0.06,
+   "half": [
+    33.97,
+    33.12
+   ],
+   "year_wins": "13/25",
+   "notes": 56.0
+  },
+  {
+   "name": "F6_sum",
+   "rate": 34.018,
+   "delta": 0.024,
+   "half": [
+    33.87,
+    33.27
+   ],
+   "year_wins": "10/25",
+   "notes": 56.0
+  },
+  {
+   "name": "shi_bucket8",
+   "rate": 34.006,
+   "delta": 0.012,
+   "half": [
+    34.38,
+    34.3
+   ],
+   "year_wins": "0/0",
+   "notes": 56.0
+  },
+  {
+   "name": "F1_shi",
+   "rate": 34.006,
+   "delta": 0.012,
+   "half": [
+    34.38,
+    34.3
+   ],
+   "year_wins": "11/25",
+   "notes": 56.0
+  },
+  {
+   "name": "road_split8",
+   "rate": 33.958,
+   "delta": -0.036,
+   "half": [
+    33.69,
+    33.73
+   ],
+   "year_wins": "0/0",
+   "notes": 56.0
+  }
+ ],
+ "families": {
+  "F1": 15,
+  "F6": 15,
+  "F3": 12,
+  "F2": 6,
+  "span": 4,
+  "sum": 4,
+  "big": 4,
+  "odd": 4,
+  "prime": 4,
+  "form": 4,
+  "pai": 4,
+  "shi": 4
+ },
+ "baseline": 33.9943
+}
