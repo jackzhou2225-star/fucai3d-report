@@ -2662,5 +2662,53 @@
   "shadow": false,
   "fp": "5c1a4c8d1f89",
   "ts": "2026-11-28T22:40:09"
+ },
+ "c4a12e7dce53": {
+  "name": "X_diff_consec_rep_8",
+  "rate": 33.7658,
+  "delta": -0.229,
+  "avg_notes": 56.0,
+  "eff": 0.00603,
+  "half": [
+   33.54,
+   34.04
+  ],
+  "year_wins": "9/25",
+  "gates": {
+   "G1": true,
+   "G2": false,
+   "G3": false,
+   "G4": false,
+   "G5": false,
+   "G6": false
+  },
+  "pass": false,
+  "shadow": false,
+  "fp": "c4a12e7dce53",
+  "ts": "2026-11-28T14:42:39"
+ },
+ "59e799df5f5b": {
+  "name": "X_single_shi_56",
+  "rate": 11.3273,
+  "delta": -22.667,
+  "avg_notes": 56.0,
+  "eff": 0.002023,
+  "half": [
+   11.63,
+   11.3
+  ],
+  "year_wins": "0/25",
+  "gates": {
+   "G1": true,
+   "G2": false,
+   "G3": false,
+   "G4": false,
+   "G5": false,
+   "G6": false
+  },
+  "pass": false,
+  "shadow": false,
+  "fp": "59e799df5f5b",
+  "ts": "2026-11-28T14:42:39"
  }
 }
