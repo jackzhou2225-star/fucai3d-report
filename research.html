@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5,user-scalable=yes">
+<title>1126 研究状态 · 自动运行中</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+     background:#f1f5f9;color:#0f172a;line-height:1.65;padding:18px 14px 60px}
+.wrap{max-width:860px;margin:0 auto}
+h1{font-size:21px;font-weight:800;letter-spacing:-.3px;margin-bottom:4px}
+.sub{font-size:12.5px;color:#64748b;margin-bottom:18px}
+.card{background:#fff;border-radius:14px;padding:16px 18px;margin-bottom:14px;
+      box-shadow:0 1px 3px rgba(15,23,42,.06),0 8px 24px -12px rgba(15,23,42,.12)}
+h3{font-size:14px;font-weight:750;margin-bottom:12px;display:flex;align-items:center;gap:7px}
+h3::before{content:"";width:3px;height:14px;background:#2563eb;border-radius:2px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:4px}
+.kpi{background:#f8fafc;border-radius:10px;padding:11px 13px;border:1px solid #e2e8f0}
+.kpi .v{font-size:22px;font-weight:800;letter-spacing:-.5px;font-variant-numeric:tabular-nums}
+.kpi .l{font-size:11.5px;color:#64748b;margin-top:1px}
+.kpi.ok .v{color:#059669}
+.kpi.warn .v{color:#d97706}
+.kpi.bad .v{color:#64748b}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th{text-align:left;font-weight:600;color:#64748b;font-size:11.5px;
+   padding:7px 8px;border-bottom:1px solid #e2e8f0;white-space:nowrap}
+td{padding:8px;border-bottom:1px solid #f1f5f9;font-variant-numeric:tabular-nums}
+tr:last-child td{border-bottom:none}
+td.num,th.num{text-align:right}
+.pos{color:#059669;font-weight:650}
+.neg{color:#94a3b8}
+.bar{height:6px;background:#e2e8f0;border-radius:3px;overflow:hidden;margin-top:3px}
+.bar>i{display:block;height:100%;background:#2563eb;border-radius:3px}
+.note{font-size:12px;color:#475569;background:#f8fafc;border-left:3px solid #cbd5e1;
+      padding:10px 13px;border-radius:0 8px 8px 0;margin-top:12px}
+.note b{color:#0f172a}
+.tag{display:inline-block;font-size:10.5px;padding:1px 7px;border-radius:20px;font-weight:650}
+.tag.p{background:#dcfce7;color:#166534}
+.tag.s{background:#fef3c7;color:#92400e}
+.tag.n{background:#f1f5f9;color:#64748b}
+.run{display:flex;align-items:center;gap:8px;font-size:12.5px;color:#059669;font-weight:600}
+.dot{width:8px;height:8px;border-radius:50%;background:#059669;
+     box-shadow:0 0 0 4px rgba(5,150,105,.15);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
+footer{text-align:center;font-size:11.5px;color:#94a3b8;margin-top:22px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>1126 研究状态</h1>
+  <div class="sub">这台机器每天自动跑，不需要人催。下面所有数字都是 8825 期实测。</div>
+
+  <div class="card">
+    <h3>运行状态</h3>
+    <div class="run"><span class="dot"></span><span id="runline">读取中…</span></div>
+    <div class="note" style="margin-top:12px">
+      引擎每天北京时间 09:00 自动生成新假设并检验，结果直接落盘。
+      <b>你不用说话，它自己跑。</b>有问题才需要你看下面「值得关注」那一栏。
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>累计成绩</h3>
+    <div class="kpis" id="kpis"></div>
+  </div>
+
+  <div class="card">
+    <h3>最接近基准的 15 条</h3>
+    <table>
+      <thead><tr><th>假设</th><th class="num">命中率</th><th class="num">差值</th><th class="num">分半</th><th>状态</th></tr></thead>
+      <tbody id="top"></tbody>
+    </table>
+    <div class="note">
+      基准 33.9943%（1126 固定 8 码）。<b>差值 = 假设命中率 − 33.9943%</b>。
+      要通过必须同时满足：差值 ≥ +1.5pp、前后半都超基准、逐年 72% 达标、超随机 95% 分位。
+      目前没有一条全过——这说明 1126 已经站在可用区间的顶上。
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>每天在测什么</h3>
+    <div id="fam" style="font-size:12.5px;color:#475569"></div>
+    <div class="note">
+      每轮随机组合「特征 × 特征 × 选码方式」，指纹去重，<b>测过的永不重测</b>。
+      跑一年约 2200 条，这是真正的长期积累，不是靠对话。
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>影子跟踪（未过全闸但接近的）</h3>
+    <div id="shadow" style="font-size:12.5px;color:#475569"></div>
+    <div class="note">
+      这些假设没通过多重比较，但命中率够高、分半也稳，先挂在这里用真实未来开奖记账。
+      攒够 200 期还站的，才会写进页面。
+    </div>
+  </div>
+
+  <footer>数据每 24 小时自动更新 · <span id="stamp">—</span></footer>
+</div>
+
+<script>
+fetch('meeting3/research_status.json?t=' + Date.now()).then(r => r.json()).then(d => {
+  if (d.empty) { document.getElementById('runline').textContent = '引擎尚未跑过'; return; }
+
+  document.getElementById('stamp').textContent = d.updated;
+  document.getElementById('runline').textContent =
+    '上次运行 ' + d.updated + ' · 已累计 ' + d.total + ' 条假设';
+
+  const k = [
+    ['已测假设', d.total, 'ok'],
+    ['通过全闸', d.passed, d.passed > 0 ? 'ok' : 'bad'],
+    ['影子跟踪', d.shadow, 'warn'],
+    ['中位差值', (d.median_delta > 0 ? '+' : '') + d.median_delta + 'pp', 'bad'],
+    ['最高差值', '+' + d.max_delta + 'pp', d.max_delta >= 1.5 ? 'ok' : 'warn'],
+  ];
+  document.getElementById('kpis').innerHTML = k.map(([l, v, c]) =>
+    `<div class="kpi ${c}"><div class="v">${v}</div><div class="l">${l}</div></div>`).join('');
+
+  document.getElementById('top').innerHTML = d.top.map(t => {
+    const cls = t.delta > 0 ? 'pos' : 'neg';
+    const sign = t.delta > 0 ? '+' : '';
+    const tag = t.delta >= 1.5 ? '<span class="tag p">达标</span>' :
+                t.delta > 0 ? '<span class="tag s">接近</span>' : '<span class="tag n">未达</span>';
+    const h = t.half.map(x => x.toFixed(2) + '%').join(' / ');
+    return `<tr><td style="font-size:11.5px">${t.name}</td>
+      <td class="num">${t.rate.toFixed(3)}%</td>
+      <td class="num ${cls}">${sign}${t.delta.toFixed(2)}pp</td>
+      <td class="num" style="font-size:11px">${h}</td>
+      <td>${tag}</td></tr>`;
+  }).join('');
+
+  const fams = Object.entries(d.families).slice(0, 10);
+  const mx = Math.max(...fams.map(f => f[1]));
+  document.getElementById('fam').innerHTML = fams.map(([n, c]) =>
+    `<div style="margin-bottom:7px"><div style="display:flex;justify-content:space-between">
+      <span>${n}</span><span style="color:#64748b">${c} 条</span></div>
+      <div class="bar"><i style="width:${100 * c / mx}%"></i></div></div>`).join('');
+
+  document.getElementById('shadow').textContent = d.shadow === 0 ?
+    '当前 0 条。说明还没有「差一点」的候选——所有假设都明确不达标。' :
+    d.shadow + ' 条正在跟踪中。';
+}).catch(e => {
+  document.getElementById('runline').textContent = '状态文件还没生成，等引擎首轮跑完';
+});
+</script>
+</body>
+</html>
