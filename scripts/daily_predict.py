@@ -321,7 +321,6 @@ def build_section(draws, ledger=None):
             for tk in g)
         g_rows.append(
             f'<tr style="{bg}"><td>第{gi}张</td><td class="mono">{cells}</td>'
-            f'<td class="num">{len(g)*4} 注</td><td class="num">{amt} 元</td>'
             f'<td class="num">近30期{gh}{tag}</td></tr>')
     groups_html = "".join(g_rows)
     all_hit = [tk for tk in TICKETS if detail[tk][1]]
@@ -385,7 +384,7 @@ def build_section(draws, ledger=None):
         _kill = "、".join(str(c) for c in sorted(SET - _cs))
         _lrows.append(
             f'<tr><td><b>{_k} 码</b></td><td class="mono"><b>{_c}</b></td>'
-            f'<td>杀 {_kill}</td><td class="num">{_zhu} 注 / {_zhu*2} 元</td>'
+            f'<td>杀 {_kill}</td>'
             f'<td class="num">{_r:.2f}%</td><td class="num">{_r100:.1f}%</td></tr>')
     _wlab = f"近{_w}期"
     _r100map = {}
@@ -438,13 +437,13 @@ def build_section(draws, ledger=None):
 <p class="lede" style="margin-top:-6px"><b>最后更新时间：{stamp}（北京时间）</b>｜本次已结算第 {last["issue"]} 期。若此时间距今超过 30 小时，说明定时任务未跑通。</p>
 <div class="card" style="border:2px solid #2563eb">
 <h3><span class="n">★</span> 今日推荐 · 7 码 / 6 码 / 5 码（第 {nxt} 期）</h3>
-<p style="margin:2px 0 10px;font-size:12.5px;color:#475569">由 1126 的固定 8 码 <b class="mono">01245689</b> 逐级剔码得到，剔除顺序按各数字 8825 期长期出现率由冷到热（无前视偏差）。码越少越省，命中率同比降。</p>
-<table><thead><tr><th>档位</th><th>买码</th><th>剔除</th><th class="num">注数 / 金额</th><th class="num">全期命中</th><th class="num">{_wlab}</th></tr></thead><tbody>
+<p style="margin:2px 0 10px;font-size:12.5px;color:#475569">由 1126 的固定 8 码 <b class="mono">01245689</b> 逐级剔码得到，剔除顺序按各数字 8825 期长期出现率由冷到热（无前视偏差）。</p>
+<table><thead><tr><th>档位</th><th>买码</th><th>剔除</th><th class="num">全期命中</th><th class="num">{_wlab}</th></tr></thead><tbody>
 {ladder_html}
 </tbody></table>
 <div class="note" style="margin-top:10px;margin-bottom:0;background:#eff6ff;border-left:3px solid #2563eb">
-<b>今日首选 7 码 <span class="mono">{win7}</span></b>（35 注 / 70 元），全期命中 {100*LADDER_LONG[7]:.2f}%、
-{_wlab} {_r100a:.1f}%；要贴着 1126 全量打就仍用 8 码 <b class="mono">01245689</b>（56 注 / 112 元）。
+<b>今日首选 7 码 <span class="mono">{win7}</span></b>，全期命中 {100*LADDER_LONG[7]:.2f}%、
+{_wlab} {_r100a:.1f}%；要贴着 1126 全量打就仍用 8 码 <b class="mono">01245689</b>。
 6 码 <b class="mono">{_ladder[6]}</b>（{100*LADDER_LONG[6]:.2f}% / {_wlab} {_r100b:.1f}%）、
 5 码 <b class="mono">{_ladder[5]}</b>（{100*LADDER_LONG[5]:.2f}% / {_wlab} {_r100c:.1f}%）为省成本档，按预算自行取舍。
 </div>
@@ -459,9 +458,9 @@ def build_section(draws, ledger=None):
 <div class="card">
 <h3>次日预测 · 第 {nxt} 期（{tomorrow} 21:15 开奖）</h3>
 <table><thead><tr><th>项目</th><th>内容</th></tr></thead><tbody>
-<tr style="background:#f0fdf6"><td><b>选码</b></td><td class="mono"><b>01245689</b>（固定 8 码，56 注 / 112 元，每期不变）</td></tr>
-<tr style="background:#f0fdf6"><td><b>出票拆单</b></td><td><b>不要打 1 张 8 码复式，按下面 14 个 4 码组去打</b>（56 注 / 112 元，零重复零遗漏；整张 8 码复式只要 56 注里 1 注被限号，官方规则整张不出票）。<div style="margin-top:8px"><b>打法A · 限号风险最小（14 张，每张 8 元）</b></div><div class="mono" style="margin-top:4px">{tickets_html}</div></td></tr>
-<tr><td></td><td><b>打法B · 过单票门槛（4 张，每张 24–32 元 ≥20 元）</b>：山东 2024 公告要求组选派奖单票≥20 元才参与，打 14 张 8 元票不达标；用这 4 张。<table style="margin-top:6px"><thead><tr><th>票</th><th>4 码组合</th><th class="num">注数</th><th class="num">金额</th><th class="num">近30期</th></tr></thead><tbody>{groups_html}</tbody></table><div style="margin-top:5px;opacity:.75;font-size:11.5px">两种打法覆盖完全相同的 56 注；A 更抗限号，B 更抗门槛，按本省公告选一种，<b>不要两种同时打</b>。</div></td></tr>
+<tr style="background:#f0fdf6"><td><b>选码</b></td><td class="mono"><b>01245689</b>（固定 8 码，每期不变）</td></tr>
+<tr style="background:#f0fdf6"><td><b>出票拆单</b></td><td><b>不要打 1 张 8 码复式，按下面 14 个 4 码组去打</b>（零重复零遗漏；整张 8 码复式只要其中 1 注被限号，官方规则整张不出票）。<div style="margin-top:8px"><b>打法A · 限号风险最小</b></div><div class="mono" style="margin-top:4px">{tickets_html}</div></td></tr>
+<tr><td></td><td><b>打法B · 过单票门槛</b>：山东 2024 公告要求组选派奖单票≥20 元才参与，打法A 的小票不达标；用这 4 张。<table style="margin-top:6px"><thead><tr><th>票</th><th>4 码组合</th><th class="num">近30期</th></tr></thead><tbody>{groups_html}</tbody></table><div style="margin-top:5px;opacity:.75;font-size:11.5px">两种打法覆盖完全相同的组合；A 更抗限号，B 更抗门槛，按本省公告选一种，<b>不要两种同时打</b>。</div></td></tr>
 <tr style="{bonus_bg}"><td><b>派奖监控</b></td><td>{bonus_txt}</td></tr>
 <tr><td><b>杀号</b></td><td>杀 {KILL}（实测各数字出现率：{kill_txt}）</td></tr>
 <tr><td><b>数字 2 状态</b></td><td>{two_state}（长期含2率 {100*r2:.2f}% vs 理论 27.10%，8码已含2）</td></tr>
@@ -515,15 +514,25 @@ def main():
     section = build_section(draws, ledger)
     with io.open(HTML_PATH, "r", encoding="utf-8") as f:
         doc = f.read()
-    # 清掉旧的预测区块与旧的导航项
+    # 清掉旧的预测区块（含包在外面的 wrap 容器）与旧的导航项
+    doc = re.sub(r'<div class="wrap" style="padding-top:16px">\s*<!--DAILY-START-->.*?<!--DAILY-END-->\s*</div>\n?',
+                 "", doc, flags=re.S)
     doc = re.sub(r"<!--DAILY-START-->.*?<!--DAILY-END-->\n?", "", doc, flags=re.S)
     doc = re.sub(r'<a href="#daily"[^>]*>.*?</a>\n?', "", doc, flags=re.S)
-    # 1) 注入到首屏正文最前面（紧跟导航后的 .wrap 内），保证打开就能看到
-    anchor = '<section id="verdict"'
+    # 1) 注入到 <body> 最顶部（hero 之前），打开链接第一屏就是每日预测
+    anchor = '<header class="hero"'
     idx = doc.find(anchor)
-    if idx < 0:
-        raise RuntimeError("index.html 中找不到 <section id=\"verdict\" 注入点")
-    doc = doc[:idx] + section + "\n" + doc[idx:]
+    if idx >= 0:
+        doc = (doc[:idx]
+               + '<div class="wrap" style="padding-top:16px">\n' + section + "\n</div>\n"
+               + doc[idx:])
+    else:
+        # 回退：放进正文最前面
+        anchor = '<section id="verdict"'
+        idx = doc.find(anchor)
+        if idx < 0:
+            raise RuntimeError("index.html 中找不到注入点")
+        doc = doc[:idx] + section + "\n" + doc[idx:]
     # 2) 导航栏加一个显眼入口
     navidx = doc.find('<a href="#verdict">一句话结论</a>')
     if navidx >= 0:
