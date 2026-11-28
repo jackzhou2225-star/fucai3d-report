@@ -201,12 +201,25 @@ def has_adjacent(nums):
     s = sorted(set(nums))
     return any(b - a == 1 for a, b in zip(s, s[1:]))
 
+def _bj_now():
+    """北京时间（UTC+8，无夏令时）。用 timezone-aware 取 UTC 再偏移。"""
+    utc = datetime.datetime.now(datetime.timezone.utc)
+    return utc.astimezone(datetime.timezone(datetime.timedelta(hours=8))).replace(tzinfo=None)
+
+
 def build_section(draws):
     last = draws[-1]
     nums = last["nums"]
     nxt = last["issue"] + 1
-    today = datetime.date.today().strftime("%Y-%m-%d")
-    tomorrow = (datetime.date.today() + datetime.timedelta(days=1)).strftime("%Y-%m-%d")
+    # 日期锚定「开奖归属日」，不是脚本运行日（UTC 跨天时会标错期）：
+    # 北京 21:15 前跑，最新一期是昨天开的；21:15 后跑，是今天开的。
+    bj = _bj_now()
+    draw_day = bj.date()
+    if bj.hour < 21 or (bj.hour == 21 and bj.minute < 15):
+        draw_day -= datetime.timedelta(days=1)
+    today = draw_day.strftime("%Y-%m-%d")
+    tomorrow = (draw_day + datetime.timedelta(days=1)).strftime("%Y-%m-%d")
+    stamp = bj.strftime("%Y-%m-%d %H:%M")
     recent10 = draws[-10:]
     h10 = sum(1 for d in recent10 if hit_z6(d["nums"]))
     recent30 = draws[-30:]
@@ -254,7 +267,8 @@ def build_section(draws):
     return f'''<!--DAILY-START-->
 <section id="daily">
 <h2><span class="n">★</span>每日预测 · 1126 算法（自动更新）</h2>
-<p class="lede">每天 22:00 自动抓取福彩开奖，结算当日、追加进下方逐期台账，并给出次日预测。本区块由定时任务维护。</p>
+<p class="lede">每天 22:00 / 23:00 自动抓取福彩开奖，结算当日、追加进下方逐期台账，并给出次日预测。本区块由定时任务维护。</p>
+<p class="lede" style="margin-top:-6px"><b>最后更新时间：{stamp}（北京时间）</b>｜本次已结算第 {last["issue"]} 期。若此时间距今超过 30 小时，说明定时任务未跑通。</p>
 <div class="card">
 <h3>{today} · 第 {last["issue"]} 期开奖结果</h3>
 <table><thead><tr><th>期号</th><th class="num">开奖号</th><th class="num">形态</th><th class="num">01245689</th><th class="num">结果</th></tr></thead><tbody>
