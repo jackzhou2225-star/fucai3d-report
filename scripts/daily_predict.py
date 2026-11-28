@@ -13,6 +13,12 @@ SET = set(int(c) for c in SEL)
 KILL = "3、7"
 CTX = ssl.create_default_context()
 
+# ── 出票拆单：14 张 4 码小复式 = 1126 的 56 注，零重复零遗漏（2026-11-28 全量 8825 期复核）──
+# 拆单理由：8 码复式整张票只要 56 注里 1 注被单注限号，官方规则是整张不出票；
+# 拆成 14 张后，被限只损 1 张 8 元，不会整张 112 元废掉。
+TICKETS = ["0124", "0156", "0189", "0258", "0269", "0459", "0468",
+           "1259", "1268", "1458", "1469", "2456", "2489", "5689"]
+
 # ── 长期校准常量（8825 期全历史 2002-2026，2026-11-28 复核锁定）──
 # 全期口径实测覆盖率 = 命中数/全部期数（组三豹子算未中）：3000/8825
 LONG_COV = 0.339943
@@ -250,6 +256,26 @@ def build_section(draws):
             break
     two_state = f"含2连续 {streak2} 期" if streak2 else f"已休息 {rest2} 期"
 
+    # ── 14 张 4 码小复式的出票清单（当期号码在哪几张里能兑奖，逐张标出）──
+    nset = set(nums)
+    t_hits30 = []
+    t_today = []
+    for tk in TICKETS:
+        ts = set(int(c) for c in tk)
+        t_hits30.append(sum(1 for x in draws[-30:]
+                            if len(set(x["nums"])) == 3 and set(x["nums"]) <= ts))
+        t_today.append(len(nset) == 3 and nset <= ts)
+    tk_cells = []
+    for tk, h30, hit in zip(TICKETS, t_hits30, t_today):
+        tag = " ◀本期中" if hit else ""
+        bg = "background:#f0fdf6" if hit else ""
+        tk_cells.append(
+            f'<span class="mono" style="display:inline-block;margin:0 8px 6px 0;'
+            f'padding:2px 6px;border-radius:5px;border:1px solid #dbe3ef;{bg}">'
+            f'<b>{tk}</b> <span style="opacity:.6;font-size:11px">近30期{h30}</span>{tag}</span>')
+    tickets_html = "".join(tk_cells)
+    t_total = sum(t_hits30)
+
     # ── 全部指标改为从抓到的真实开奖数据现算，不再写死，保证与本地算法同步 ──
     n_all = len(draws)
     z6_all = sum(1 for d in draws if len(set(d["nums"])) == 3)
@@ -283,6 +309,7 @@ def build_section(draws):
 <h3>次日预测 · 第 {nxt} 期（{tomorrow} 21:15 开奖）</h3>
 <table><thead><tr><th>项目</th><th>内容</th></tr></thead><tbody>
 <tr style="background:#f0fdf6"><td><b>选码</b></td><td class="mono"><b>01245689</b>（固定 8 码，56 注 / 112 元，每期不变）</td></tr>
+<tr style="background:#f0fdf6"><td><b>出票拆单</b></td><td><b>不要打 1 张 8 码复式，打 14 张 4 码小复式</b>（每张 4 注 / 8 元，共 56 注 / 112 元，零重复零遗漏）。<div style="margin-top:7px">{tickets_html}</div><div style="margin-top:4px;opacity:.75;font-size:11.5px">近 30 期这 14 张合计命中 {t_total} 注。整张 8 码复式只要 56 注里 1 注被单注限号，官方规则是<b>整张不出票</b>；拆开后被限只损 1 张 8 元。</div></td></tr>
 <tr><td><b>杀号</b></td><td>杀 {KILL}（实测各数字出现率：{kill_txt}）</td></tr>
 <tr><td><b>数字 2 状态</b></td><td>{two_state}（长期含2率 {100*r2:.2f}% vs 理论 27.10%，8码已含2）</td></tr>
 <tr><td><b>加强过滤（9注）</b></td><td class="mono">{"、".join(notes9)}</td></tr>
