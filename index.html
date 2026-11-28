@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN"><head><meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5,user-scalable=yes">
 <title>福彩3D 选码模型 · 逐期论证</title>
@@ -2710,7 +2710,7 @@ Sheet1 的 9 条 + Sheet5 的 19 条，共 <b>28 条</b>，去重后 <b>16 个</
 
 </div>
 
-<script src="data.js" defer></script>
+<script src="data.js" defer onload="window.__renderLedger&&window.__renderLedger()"></script>
 <script>
 let P=window.__P||[];
 const tb=document.getElementById('tb');
@@ -2989,9 +2989,10 @@ function tog(i){const e=document.getElementById('d'+i);if(e)e.classList.toggle('
 /* 台账数据异步加载：静态区块先显示，data.js 到位后再渲染逐期台账 */
 (function waitData(n){
   if(window.__P && window.__P.length){ P = window.__P; render(); return; }
-  if(n >= 30){ return; }
+  if(n >= 300){ return; }
   setTimeout(function(){ waitData(n+1); }, 100);
 })(0);
+window.__renderLedger=function(){ if(window.__P&&window.__P.length){ P=window.__P; render(); } };
 </script>
 <footer style="max-width:1080px;margin:30px auto 40px;padding:14px 18px;border-top:1px solid #e3eaf4;color:#64748b;font-size:13px;text-align:center">
 制作人：周锋 · 联系电话 15060672225 · 模型算法 1126（8 码 01245689，杀 3、7，固定不变）<br>
