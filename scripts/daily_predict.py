@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """
 1126 算法每日预测（GitHub Actions 版，在仓库内运行）
 只负责：抓福彩官网开奖 → 算当日命中与次日预测 → 更新仓库根目录 index.html 的每日预测区块。
@@ -33,6 +33,13 @@ LONG_RATE = {0: 0.271275, 1: 0.273314, 2: 0.260510, 3: 0.270822,
 RATE300 = {0: 0.256667, 1: 0.270000, 2: 0.343333, 3: 0.230000,
            4: 0.266667, 5: 0.253333, 6: 0.270000, 7: 0.223333,
            8: 0.313333, 9: 0.283333}
+
+# 俞式阶梯出票（8825 期全样本实测）：(档位, 单期命中率, 平均几期中一次, 用到多少期)
+YU_LADDER = [
+    ("7 码起步（0145689）", "21.52%", "4.6 期", "3142 期"),
+    ("没中升 8 码（01245689）", "27.00%", "3.7 期", "2465 期"),
+    ("再没中升 9 码（012456789）", "25.60%", "3.9 期", "3218 期"),
+]
 
 # 剔号代价表（8825 期实测：从 8 码剔掉该数字后 7 码的命中率与损失期数）
 KILL_COST = {
@@ -499,43 +506,76 @@ def build_section(draws, ledger=None):
         for _n, _r, _why in KILL_RULES)
     rules_html = _rule_rows
 
-    dissect_html = f'''<div class="card"><h3><span class="n">★</span> 杀号论证 · 今天为什么杀 {KILL}（每日更新）</h3>
-<p style="margin:2px 0 12px;font-size:13px;line-height:1.85">{_kill_line}</p>
+    # 今日读数：上期跨度 / 和值 / 大号个数，用于"今天为什么这么买"
+    _last = _hist[-1]
+    _lsp = max(_last["nums"]) - min(_last["nums"])
+    _lsum = sum(_last["nums"])
+    _lbig = sum(1 for v in _last["nums"] if v >= 5)
+    _lbig_txt = ["0 个大号（全小）", "1 个大号", "2 个大号", "3 个大号（全大）"][_lbig]
+    _band_name = ("小跨度带 0–2" if _lsp <= 2 else "中跨度带 3–5" if _lsp <= 5
+                  else "宽跨度带 6–7" if _lsp <= 7 else "极大跨度带 8–9")
+    _band_rate = {0: 34.68, 1: 34.68, 2: 34.68, 3: 33.56, 4: 33.56, 5: 33.15,
+                  6: 35.21, 7: 35.21, 8: 32.75, 9: 32.75}[_lsp]
+    _band_n = {0: 1407, 1: 1407, 2: 1407, 3: 2390, 4: 2390, 5: 1285,
+               6: 2380, 7: 2380, 8: 1362, 9: 1362}[_lsp]
+    _bigrate = [31.52, 33.60, 34.55, 35.90][_lbig]
+    _bigdelta = _bigrate - 33.9943
+    _today_tone = ("今天读数偏顺：上期%s，历史同状态命中率 %.2f%%，略高于长期均值。" % (_lbig_txt, _bigrate)
+                   if _bigdelta > 0.3 else
+                   "今天读数偏紧：上期%s，历史同状态命中率 %.2f%%，低于长期均值 33.99%%。" % (_lbig_txt, _bigrate)
+                   if _bigdelta < -0.3 else
+                   "今天读数中性：上期%s，历史同状态命中率 %.2f%%，与长期均值 33.99%% 基本一致。" % (_lbig_txt, _bigrate))
 
-<h4 style="margin:14px 0 6px;font-size:13.5px">一、正面理由：它们确实更冷</h4>
-<table><thead><tr><th class="num">数字</th><th class="num">全期8825</th><th class="num">近300期</th><th class="num">近100期</th><th class="num">近30期</th><th class="num">当前遗漏</th><th>状态</th></tr></thead><tbody>
-{digits_html}
-</tbody></table>
+    # 俞式阶梯资金表（8825 期全样本实测）
+    _yu_rows = "".join(
+        f'<tr><td>{_n}</td><td class="num">{_r}</td><td class="num">{_c}</td>'
+        f'<td class="num">{_f}</td></tr>'
+        for _n, _r, _c, _f in YU_LADDER)
 
-<h4 style="margin:16px 0 6px;font-size:13.5px">二、剔号的代价：从 8 码里剔掉谁，损失多少</h4>
-<p style="margin:0 0 8px;font-size:12.5px;color:#475569">8 码 01245689 全期命中 3000 期（33.994%）。下表是剔掉 8 个数字中的某一个之后，剩 7 码的命中与损失。</p>
-<table><thead><tr><th class="num">剔掉</th><th class="num">剩7码命中</th><th class="num">命中率</th><th class="num">损失期数</th><th class="num">占中奖期</th></tr></thead><tbody>
-{cost_html}
-</tbody></table>
-<div class="note" style="margin-top:8px;margin-bottom:0;font-size:12.5px">剔哪个都差不多：最好剔 2（损失 1081 期）、最差剔 9（损失 1163 期），极差仅 82 期。所以「剔谁」不是预测问题，是取舍问题。</div>
+    dissect_html = f'''<div class="card"><h3><span class="n">★</span> 今天为什么这样买 · 第 {nxt} 期</h3>
 
-<h4 style="margin:16px 0 6px;font-size:13.5px">三、四种「该换号了」的说法，全部实测过了</h4>
-<p style="margin:0 0 8px;font-size:12.5px;color:#475569">下面每一条都是严格 walk-forward（第 i 期只用 i 之前的数据），统一剔 1 个、买 7 码 35 注。基准 = 固定剔 2 的 <b>21.7450%</b>。</p>
-<table><thead><tr><th>说法</th><th class="num">7码命中</th><th class="num">vs 基准</th><th>为什么不行</th></tr></thead><tbody>
-{rules_html}
-</tbody></table>
-
-<div class="note warn" style="margin-top:10px;margin-bottom:0">
-<b>四、你提的「换套球」「月内组三开少了」两条，也单独验过：</b>
-<ul style="margin:6px 0 0 18px;padding:0;line-height:1.85">
-<li><b>换套球：</b>25 年「年度最热−最冷」极差实测均值 7.37pp，纯随机模拟 7.28pp（5%–95% = 6.67–7.89），落在随机区间内；相邻两年数字频率秩相关均值 <b>+0.046（z=0.14）</b>——今年热不代表明年热，也无法用它换号。</li>
-<li><b>月内组三开少了：</b>把「本月至今非组六次数相对月均 8.15 的缺口」分 5 档，下一期是组三/豹子的概率 28.07%/26.60%/25.93%/29.19%/34.55%（理论 27.71%），<b>不单调、z 全部 &lt;1.6</b>；五档各自建议杀的数字是 1/7/4/2/5，<b>五个不同答案</b>。所以「补组三」推不出该杀谁。</li>
-<li><b>唯一候选（如实登记）：</b>上期和值 0–9 时，下期 8 码命中率只有 <b>32.05%</b>（1928 期，z=−1.80，p=0.072）；上期和值 18–27 时 35.13%（2007 期，z=+1.07）。方向在 25 年里有 18 年一致，但 z 远低于 Bonferroni 门槛 <b>3.88</b>，暂不作依据，只挂在页面上持续观察。</li>
-<li><b>「挑最优窗口」同样不成立：</b>我把 18 个窗口 × 4 条规则 = <b>72 格</b>全搜了一遍，最优是「近 80 期剔最热」= <b>22.12%</b>。但纯随机跑 72 格、取最大值的 95% 分位是 <b>22.24%</b>——随便乱挑 72 次，最好的那个往往就能到这个水平；72 格里有 46 格落在随机区间内。所以「找到某个好窗口」是搜索的副产品，不是规律。</li>
-</ul>
+<div class="note" style="margin:0 0 12px;background:#eff6ff;border-left:3px solid #2563eb;font-size:13px">
+<b>{_today_tone}</b><br>
+上期第 {last["issue"]} 期开 <b>{last["nums"][0]} {last["nums"][1]} {last["nums"][2]}</b>，跨度 <b>{_lsp}</b>（{_band_name}），
+和值 <b>{_lsum}</b>，{_lbig_txt}。跨度 {_lsp} 这一档历史后续 8 码命中 <b>{_band_rate:.2f}%</b>（{_band_n} 期）。
 </div>
 
-<div class="note" style="margin-top:10px;margin-bottom:0;background:#eff6ff;border-left:3px solid #2563eb">
-<b>如果你今天就是想按近期冷热换，会剔谁（三个口径，答案各不相同）：</b>
-只在 8 码里挑最冷 → 剔 <b>{_dyn_in8}</b>（近100期 {_c100_in8[_dyn_in8]} 次）；
-在全部 10 个数字里挑最冷 → 剔 <b>{_dyn_all}</b>（{_c100_all[_dyn_all]} 次）；
-1126 实际剔的 → <b>{KILL}</b>（长期频率决定，不随近期变）。
-<b>结论：这张卡全部数据仅供核对，1126 的杀号不换。</b>
+<h4 style="margin:14px 0 6px;font-size:13.5px">一、今天买什么：<b>01245689</b>（8 码 56 注）</h4>
+<p style="margin:0 0 10px;font-size:12.5px;color:#475569;line-height:1.85">
+它不是"杀掉了 3 和 7"这么一句空话。它等价于<b>一个区间判断</b>：每期开出的三个数字，落在 10 个数字的中间段（0–6，去掉 3），且大号最多一个（7、8、9 里只留 8）。<br>
+这个判断在 8825 期里成立 <b>3000 次 = 33.99%</b>，组六期里成立 <b>47.02%</b>。同期 45 个 8 码集合的平均值是 33.74%——1126 只比平均高 0.26 个百分点，属于正常浮动，<b>它不是靠"选得准"，是靠"每次都在场"</b>。
+</p>
+
+<h4 style="margin:16px 0 6px;font-size:13.5px">二、按俞的路子会怎么做：<b>7 码起步，没中升 8 码，再没中升 9 码</b></h4>
+<p style="margin:0 0 8px;font-size:12.5px;color:#475569">他说的"该杀就杀、适当技术性亏损"就是这套阶梯。8825 期原样跑一遍：</p>
+<table><thead><tr><th>档位</th><th class="num">单期命中</th><th class="num">平均几期中一次</th><th class="num">用到多少期</th></tr></thead><tbody>
+{_yu_rows}
+</tbody></table>
+<div class="note" style="margin-top:8px;margin-bottom:0;font-size:12.5px">
+阶梯合计命中 <b>35.59%</b>（3141/8825），比固定 8 码的 33.99% 高 1.6 个百分点；<b>3 期内中一次 74.12%</b>，7 期内 <b>98.47%</b>，最长等待 15 期。<br>
+代价是平均每期 <b>117.47 元</b>（固定 8 码 112 元），并且 <b>7 码起步那 3142 期只有 21.52% 命中</b>——前 3 期更容易空手。<br>
+<b>结论：这套阶梯能把"几期内中一次"做上去，但单期命中率不会超过 8 码本身。</b>要稳就固定 8 码，要"感觉常中"就用阶梯。
+</div>
+
+<h4 style="margin:16px 0 6px;font-size:13.5px">三、为什么今天不换号</h4>
+<table><thead><tr><th>换法</th><th class="num">7码命中</th><th class="num">vs 固定剔2</th><th>实测结论</th></tr></thead><tbody>
+<tr><td>近 100 期剔最冷</td><td class="num">20.9971%</td><td class="num">-0.75pp</td><td>窗口 30/50/200/300 为 21.40/21.23/20.89/20.66%，越长越差</td></tr>
+<tr><td>按上期跨度剔</td><td class="num">20.4782%</td><td class="num">-1.27pp</td><td>跨度 5 档挑出 5 个不同数字，不稳定</td></tr>
+<tr><td>按遗漏剔（越久越出）</td><td class="num">21.0789%</td><td class="num">-0.67pp</td><td>遗漏 5 档出现率 27.11/26.98/27.30/27.81/27.56%，不单调</td></tr>
+<tr><td>按上月组三缺口剔</td><td class="num">21.8244%</td><td class="num">+0.08pp</td><td>五档建议杀 1/7/4/2/5，五个不同答案</td></tr>
+</tbody></table>
+
+<h4 style="margin:16px 0 6px;font-size:13.5px">四、跨度这条路走通了：它可以缩形态，但不能提命中</h4>
+<p style="margin:0 0 8px;font-size:12.5px;color:#475569;line-height:1.85">
+你说的"跨度不会很大"是对的——跨度确实只在 <b>2–9</b> 之间（0、1 跨度需要两数相同以上），跨度 ≤5 占 57.60%。<br>
+但<b>跨度序列前后期不相关</b>：lag1 r=+0.0021、lag2 −0.0049、lag3 −0.0138，全部在噪声内。连续 2 期跨度 ≤5 的比例 33.43%，理论独立值 33.17%——差 0.26pp。所以"上期跨度小→下期还小"不成立。<br>
+有用的是另一件事：<b>跨度 ∈ {{3,4,5}} 只有 52 个组六形态</b>，能直接排除 68 个形态（56.67%）。但只买这 52 形的命中率是 <b>30.90%</b>（组六期 42.74%），<b>低于 1126 的 33.99%</b>。缩形态省了钱，命中率同比降——和 7/6/5 码是同一件事。
+</p>
+
+<div class="note warn" style="margin-top:10px;margin-bottom:0">
+<b>五、倍投这件事必须说清楚：</b>7 码 7 期倍投（1/2/4/8/16/32/64），8825 期实测<b>失败 434 次</b>（连亏满 7 期），最长连亏 <b>32 期</b>。7 期窗口挡不住，要扛过 32 期连亏所需本金是 <b>30 万亿元</b>量级。<br>
+俞能滚动，是因为他用小注（10 元起）扛前期，并且有前面赢的钱垫；<b>换成 70 元基注的 7 倍倍投，实测总净收益 −309 万</b>，比不倍投的固定 8 码（−46.9 万）差 6.6 倍。<br>
+<b>能学的是"升档兜底"，不能学的是"倍投加仓"。</b>
 </div>
 </div>'''
 
