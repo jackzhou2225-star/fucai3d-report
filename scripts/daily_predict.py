@@ -244,7 +244,7 @@ def _bonus_info(day):
     return None
 
 
-def build_section(draws):
+def build_section(draws, ledger=None):
     last = draws[-1]
     nums = last["nums"]
     nxt = last["issue"] + 1
@@ -370,18 +370,30 @@ def build_section(draws):
         _keep = sorted(c for c in SET if c not in _order[:8 - _k])
         _ladder[_k] = "".join(map(str, _keep))
     _lrows = []
+    # 近 100 期必须用「全量台账」算，不能用抓到的窗口：
+    # 生产环境 fetch 常只拿到 30 期镜像，用 draws[-100:] 会变成「近 31 期」标成「近 100 期」。
+    _hist = ledger if (ledger and len(ledger) >= 100) else draws
+    _w = min(100, len(_hist))
+    _seg = _hist[-_w:]
     for _k in (7, 6, 5):
         _c = _ladder[_k]
         _cs = set(int(x) for x in _c)
         _zhu = len(list(combinations(sorted(_cs), 3)))
-        _h100 = sum(1 for x in draws[-100:] if len(set(x["nums"])) == 3 and set(x["nums"]) <= _cs)
+        _h100 = sum(1 for x in _seg if len(set(x["nums"])) == 3 and set(x["nums"]) <= _cs)
         _r = 100.0 * LADDER_LONG[_k]                       # 全期用 8825 期锁定值
-        _r100 = 100.0 * _h100 / min(100, len(draws))
+        _r100 = 100.0 * _h100 / _w
         _kill = "、".join(str(c) for c in sorted(SET - _cs))
         _lrows.append(
             f'<tr><td><b>{_k} 码</b></td><td class="mono"><b>{_c}</b></td>'
             f'<td>杀 {_kill}</td><td class="num">{_zhu} 注 / {_zhu*2} 元</td>'
             f'<td class="num">{_r:.2f}%</td><td class="num">{_r100:.1f}%</td></tr>')
+    _wlab = f"近{_w}期"
+    _r100map = {}
+    for _k in (7, 6, 5):
+        _cs = set(int(x) for x in _ladder[_k])
+        _h = sum(1 for x in _seg if len(set(x["nums"])) == 3 and set(x["nums"]) <= _cs)
+        _r100map[_k] = 100.0 * _h / _w
+    _r100a, _r100b, _r100c = _r100map[7], _r100map[6], _r100map[5]
     ladder_html = "".join(_lrows)
     win7 = _ladder[7]
 
@@ -427,13 +439,14 @@ def build_section(draws):
 <div class="card" style="border:2px solid #2563eb">
 <h3><span class="n">★</span> 今日推荐 · 7 码 / 6 码 / 5 码（第 {nxt} 期）</h3>
 <p style="margin:2px 0 10px;font-size:12.5px;color:#475569">由 1126 的固定 8 码 <b class="mono">01245689</b> 逐级剔码得到，剔除顺序按各数字 8825 期长期出现率由冷到热（无前视偏差）。码越少越省，命中率同比降。</p>
-<table><thead><tr><th>档位</th><th>买码</th><th>剔除</th><th class="num">注数 / 金额</th><th class="num">全期命中</th><th class="num">近100期</th></tr></thead><tbody>
+<table><thead><tr><th>档位</th><th>买码</th><th>剔除</th><th class="num">注数 / 金额</th><th class="num">全期命中</th><th class="num">{_wlab}</th></tr></thead><tbody>
 {ladder_html}
 </tbody></table>
 <div class="note" style="margin-top:10px;margin-bottom:0;background:#eff6ff;border-left:3px solid #2563eb">
-<b>今日首选 7 码 <span class="mono">{win7}</span></b>（35 注 / 70 元），全期命中 21.75%、近 100 期 33.0%；
-要贴着 1126 全量打就仍用 8 码 <b class="mono">01245689</b>（56 注 / 112 元）。
-6 码 <b class="mono">{_ladder[6]}</b>、5 码 <b class="mono">{_ladder[5]}</b> 为省成本档，命中率相应下降，按预算自行取舍。
+<b>今日首选 7 码 <span class="mono">{win7}</span></b>（35 注 / 70 元），全期命中 {100*LADDER_LONG[7]:.2f}%、
+{_wlab} {_r100a:.1f}%；要贴着 1126 全量打就仍用 8 码 <b class="mono">01245689</b>（56 注 / 112 元）。
+6 码 <b class="mono">{_ladder[6]}</b>（{100*LADDER_LONG[6]:.2f}% / {_wlab} {_r100b:.1f}%）、
+5 码 <b class="mono">{_ladder[5]}</b>（{100*LADDER_LONG[5]:.2f}% / {_wlab} {_r100c:.1f}%）为省成本档，按预算自行取舍。
 </div>
 </div>
 <div class="card">
@@ -478,7 +491,28 @@ def main():
         print(f"LEDGER: 新增 {n_added} 期，台账共 {n_total} 期")
     except Exception as e:
         print(f"LEDGER_SKIP: {type(e).__name__}: {e}")
-    section = build_section(draws)
+    # 读全量台账（供近 100 期统计用，生产环境抓取窗口常只有 30 期）
+    ledger = None
+    try:
+        import os
+        dj = os.path.join(os.path.dirname(os.path.abspath(HTML_PATH)), "data.js")
+        if os.path.exists(dj):
+            with io.open(dj, encoding="utf-8") as f:
+                mj = re.search(r"window\.__P=(\[.*?\]);", f.read(), re.S)
+            if mj:
+                ledger = [{"issue": p["i"], "nums": [int(c) for c in p["draw"]]}
+                          for p in json.loads(mj.group(1))]
+                print(f"LEDGER_READ: data.js {len(ledger)} 期")
+        else:
+            with io.open(HTML_PATH, encoding="utf-8") as f:
+                mj = re.search(r"const P=(\[.*?\]);", f.read(), re.S)
+            if mj:
+                ledger = [{"issue": p["i"], "nums": [int(c) for c in p["draw"]]}
+                          for p in json.loads(mj.group(1))]
+                print(f"LEDGER_READ: index.html {len(ledger)} 期")
+    except Exception as e:
+        print(f"LEDGER_READ_SKIP: {type(e).__name__}: {e}")
+    section = build_section(draws, ledger)
     with io.open(HTML_PATH, "r", encoding="utf-8") as f:
         doc = f.read()
     # 清掉旧的预测区块与旧的导航项
