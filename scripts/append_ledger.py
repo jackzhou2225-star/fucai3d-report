@@ -121,13 +121,34 @@ def build_record(hist, t, issue, digits):
 
 
 def append_to_html(html_path, draws):
-    """draws: [{"issue": int, "nums": [int,int,int]}]，按issue升序。返回 (新增条数, 新总数)"""
+    """draws: [{"issue": int, "nums": [int,int,int]}]，按issue升序。返回 (新增条数, 新总数)
+
+    台账数据可能在两处（二选一）：
+      a) index.html 内联 `const P=[...]`（旧格式）
+      b) 同目录 data.js 内 `window.__P=[...]`（首屏瘦身格式，2026-11-28 起）
+    优先用 data.js，找不到再回退 index.html。
+    """
+    import os
     with io.open(html_path, "r", encoding="utf-8") as f:
         doc = f.read()
 
-    m = re.search(r"const P=(\[.*?\]);", doc, re.S)
-    if not m:
-        raise RuntimeError("index.html 中找不到 const P=[...]")
+    data_path = os.path.join(os.path.dirname(os.path.abspath(html_path)), "data.js")
+    data_doc = None
+    if os.path.exists(data_path):
+        with io.open(data_path, "r", encoding="utf-8") as f:
+            data_doc = f.read()
+
+    if data_doc is not None:
+        m = re.search(r"window\.__P=(\[.*?\]);", data_doc, re.S)
+        if not m:
+            raise RuntimeError("data.js 中找不到 window.__P=[...]")
+        target, target_doc = "data.js", data_doc
+    else:
+        m = re.search(r"const P=(\[.*?\]);", doc, re.S)
+        if not m:
+            raise RuntimeError("index.html 中找不到 const P=[...]")
+        target, target_doc = "html", doc
+
     P = json.loads(m.group(1))
     last_issue = P[-1]["i"]
 
@@ -151,7 +172,12 @@ def append_to_html(html_path, draws):
         return 0, len(P)
 
     new_json = json.dumps(P, ensure_ascii=False, separators=(",", ":"))
-    doc = doc[:m.start(1)] + new_json + doc[m.end(1):]
+    if target == "data.js":
+        target_doc = target_doc[:m.start(1)] + new_json + target_doc[m.end(1):]
+        with io.open(data_path, "w", encoding="utf-8", newline="") as f:
+            f.write(target_doc)
+    else:
+        doc = doc[:m.start(1)] + new_json + doc[m.end(1):]
 
     # ---- 同步台账头部统计 ----
     total = len(P)
@@ -186,15 +212,17 @@ def append_to_html(html_path, draws):
         return body
     doc = re.sub(r'<div class="stats">.*?</div>\s*</div>', _fix_stat, doc, count=1, flags=re.S)
 
-    # 台账标题与数据区间（正文分析仍冻结在 302 期基准，避免与历史论证矛盾）
+    # 台账标题与数据区间（标题保持干净，不带括号噪音）
     doc = re.sub(r'逐期台账 · \d+ 期(（[^）]*）)?',
-                 f'逐期台账 · {total} 期（新开奖自动追加，分析基准仍为 302 期）', doc, count=1)
+                 f'逐期台账 · {total} 期', doc, count=1)
     doc = re.sub(r'数据区间 <b>\d+–\d+</b>', f'数据区间 <b>{first_issue}–{last_new}</b>', doc, count=1)
     doc = re.sub(r'全部 \d+ 期', f'全部 {total} 期', doc, count=1)
 
-    # 首页大标题 + 副标题 + 页脚（跟着台账实际期数走）
+    # 首页大标题 + 副标题 + 页脚（跟着台账实际期数走，并说明分析基准）
     doc = re.sub(r'<br>\d+ 期逐期论证</h1>', f'<br>{total} 期逐期论证</h1>', doc, count=1)
-    doc = re.sub(r'数据区间 (\d+–\d+)　·　共 \d+ 期', f'数据区间 {first_issue}–{last_new}　·　共 {total} 期', doc, count=1)
+    doc = re.sub(r'数据区间 (\d+)–(\d+)　·　共 \d+ 期[^\n<]*',
+                 f'数据区间 {first_issue}–{last_new}　·　共 {total} 期　·　'
+                 f'分析基准 302 期，台账每日自动追加', doc, count=1)
     doc = re.sub(r'数据区间 <b>\d+–\d+</b>　·　共 <b>\d+ 期</b>',
                  f'数据区间 <b>{first_issue}–{last_new}</b>　·　共 <b>{total} 期</b>', doc, count=1)
 
