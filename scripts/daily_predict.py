@@ -15,7 +15,7 @@ CTX = ssl.create_default_context()
 
 # ── 长期校准常量（来自 4821 期全历史复核，2026-11-27 锁定）──
 # 全期口径实测覆盖率 = 命中数/全部期数（组三豹子算未中）
-LONG_COV = 0.3439
+LONG_COV = 0.3399
 # 各数字长期出现率（4821 期）
 LONG_RATE = {0: 0.2690, 1: 0.2692, 2: 0.2667, 3: 0.2651, 4: 0.2674,
              5: 0.2647, 6: 0.2750, 7: 0.2765, 8: 0.2842, 9: 0.2746}
@@ -284,7 +284,7 @@ def build_section(draws):
 <tr><td><b>加强过滤（9注）</b></td><td class="mono">{"、".join(notes9)}</td></tr>
 <tr><td><b>近 10 期</b></td><td>8 码真兑奖命中 {h10}/10；近 30 期含2 {has2_30}/30、连号 {adj30}/30</td></tr>
 <tr><td><b>3 期内中一次</b></td><td>{roll3:.2f}%（滚动窗口，理论 {100*p3:.2f}%）</td></tr>
-<tr style="background:#fffbf0"><td><b>保本赔付额</b></td><td><b>{pstar:.0f} 元</b>（= 成本 112 元 ÷ 长期覆盖率 {100*LONG_COV:.2f}%，基于 4821 期全历史）。低于此数每期亏，高于此数每期赚。（当前窗口 {n_all} 期实测 {100*cov_win:.2f}%，仅供对照）</td></tr>
+<tr style="background:#fffbf0"><td><b>保本赔付额</b></td><td><b>{pstar:.0f} 元</b>（= 成本 112 元 ÷ 长期覆盖率 {100*LONG_COV:.2f}%，基于 8825 期全历史（2002-2026））。低于此数每期亏，高于此数每期赚。（当前窗口 {n_all} 期实测 {100*cov_win:.2f}%，仅供对照）</td></tr>
 </tbody></table>
 <div class="note warn" style="margin-top:14px;margin-bottom:0">
 <b>口径提醒：</b>真兑奖 = 三码全中且三数不同（组六口径）。8 码理论命中率 33.60%，前向期望约 38%。
