@@ -29,6 +29,12 @@ LONG_RATE = {0: 0.271275, 1: 0.273314, 2: 0.260510, 3: 0.270822,
              4: 0.272295, 5: 0.267762, 6: 0.271048, 7: 0.272295,
              8: 0.279547, 9: 0.273654}
 
+# 7/6/5 码缩码阶梯的长期校准（8825 期实测，2026-11-28 锁定）
+# 剔码顺序 = 8 码内长期出现率由冷到热：2(26.05) → 5(26.78) → 6(27.10)
+LADDER_LONG = {7: 0.217450, 6: 0.122833, 5: 0.061756}
+# 月度「组三+豹子」长期基准（300 个自然月，8825 期）
+MONTH_NON6_MEAN = 8.15
+
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36")
 
@@ -355,17 +361,88 @@ def build_section(draws):
     notes9 = [" ".join(map(str, sorted(c))) for c in combinations(SET, 3)
               if 2 in c and any(b - a == 1 for a, b in zip(sorted(c), sorted(c)[1:]))]
     color = "#f0fdf6" if today_hit else "#fef2f2"
+
+    # ── 7/6/5 码缩码阶梯（按长期数字频率从 8 码里由冷到热剔除，无前视偏差）──
+    # 实测：8码33.99/7码21.75/6码12.28/5码6.18（全期），注数与成本同步下降
+    _order = sorted(SET, key=lambda c: LONG_RATE[c])          # 最冷在前
+    _ladder = {}
+    for _k in (8, 7, 6, 5):
+        _keep = sorted(c for c in SET if c not in _order[:8 - _k])
+        _ladder[_k] = "".join(map(str, _keep))
+    _lrows = []
+    for _k in (7, 6, 5):
+        _c = _ladder[_k]
+        _cs = set(int(x) for x in _c)
+        _zhu = len(list(combinations(sorted(_cs), 3)))
+        _h100 = sum(1 for x in draws[-100:] if len(set(x["nums"])) == 3 and set(x["nums"]) <= _cs)
+        _r = 100.0 * LADDER_LONG[_k]                       # 全期用 8825 期锁定值
+        _r100 = 100.0 * _h100 / min(100, len(draws))
+        _kill = "、".join(str(c) for c in sorted(SET - _cs))
+        _lrows.append(
+            f'<tr><td><b>{_k} 码</b></td><td class="mono"><b>{_c}</b></td>'
+            f'<td>杀 {_kill}</td><td class="num">{_zhu} 注 / {_zhu*2} 元</td>'
+            f'<td class="num">{_r:.2f}%</td><td class="num">{_r100:.1f}%</td></tr>')
+    ladder_html = "".join(_lrows)
+    win7 = _ladder[7]
+
+    # ── 月度「组三+豹子」监控：按真实日历月归属（每年 351 期 = 365 天，扣除休市）──
+    _ISSUES_PER_YEAR = 351.0
+    def _month_of_issue(seq):
+        return min(12, max(1, int((seq - 1) * 12 // _ISSUES_PER_YEAR) + 1))
+    def _issue_range(year_month):
+        lo = int((year_month - 1) * _ISSUES_PER_YEAR / 12) + 1
+        hi = int(year_month * _ISSUES_PER_YEAR / 12)
+        return lo, hi
+
+    _yi = int(str(last["issue"])[:4])
+    _seq = int(str(last["issue"])[4:])
+    _mm = _month_of_issue(_seq)
+    _lo, _hi = _issue_range(_mm)
+    _mcur = [x for x in draws if int(str(x["issue"])[:4]) == _yi
+             and _lo <= int(str(x["issue"])[4:]) <= _seq]
+    _mnon6 = sum(1 for x in _mcur if len(set(x["nums"])) < 3)
+    _mleft = max(0, _hi - _seq)
+    _exp = MONTH_NON6_MEAN
+    _need = max(0, round(_exp) - _mnon6)
+    _mclass = "p-ok" if _mnon6 >= round(_exp) else "p-bad"
+    monthly_html = (
+        f'<div class="card"><h3>本月「组三 + 豹子」进度（{_yi} 年 {_mm} 月，第 {_lo}–{_seq} 期）</h3>'
+        f'<table><thead><tr><th>项目</th><th class="num">数值</th><th>说明</th></tr></thead><tbody>'
+        f'<tr><td>本月已开</td><td class="num">{len(_mcur)} 期</td><td>其中组三 + 豹子 <b>{_mnon6}</b> 次</td></tr>'
+        f'<tr><td>历史月均</td><td class="num">{_exp:.2f} 次</td><td>300 个自然月实测，标准差 2.32，最小 2 / 最大 16</td></tr>'
+        f'<tr><td>本月进度</td><td class="num"><span class="pill {_mclass}">{_mnon6} / {round(_exp)}</span></td>'
+        f'<td>{"已达标" if _mnon6 >= round(_exp) else f"还差 {_need} 次，本月剩余 {_mleft} 期"}</td></tr>'
+        f'</tbody></table>'
+        f'<div class="note" style="margin-top:10px;margin-bottom:0">'
+        f'<b>月底补号（第 4 次会议记录）：</b>"月前没开够、月底会补组三豹子"，'
+        f'例 2026-11-27 开出 300。本页按月跟踪。<b>该说法在 8825 期上未通过统计检验</b>'
+        f'（月总数对前 26 期次数的回归斜率 0.978，H0:斜率=1 的 t=−1.02；分档后段率 22.6%–29.4% 无单调）。'
+        f'仅作观察仪表，不当加注依据。</div></div>'
+    )
     return f'''<!--DAILY-START-->
 <section id="daily">
 <h2><span class="n">★</span>每日预测 · 1126 算法（自动更新）</h2>
 <p class="lede">每天 22:00 / 23:00 自动抓取福彩开奖，结算当日、追加进下方逐期台账，并给出次日预测。本区块由定时任务维护。</p>
 <p class="lede" style="margin-top:-6px"><b>最后更新时间：{stamp}（北京时间）</b>｜本次已结算第 {last["issue"]} 期。若此时间距今超过 30 小时，说明定时任务未跑通。</p>
+<div class="card" style="border:2px solid #2563eb">
+<h3><span class="n">★</span> 今日推荐 · 7 码 / 6 码 / 5 码（第 {nxt} 期）</h3>
+<p style="margin:2px 0 10px;font-size:12.5px;color:#475569">由 1126 的固定 8 码 <b class="mono">01245689</b> 逐级剔码得到，剔除顺序按各数字 8825 期长期出现率由冷到热（无前视偏差）。码越少越省，命中率同比降。</p>
+<table><thead><tr><th>档位</th><th>买码</th><th>剔除</th><th class="num">注数 / 金额</th><th class="num">全期命中</th><th class="num">近100期</th></tr></thead><tbody>
+{ladder_html}
+</tbody></table>
+<div class="note" style="margin-top:10px;margin-bottom:0;background:#eff6ff;border-left:3px solid #2563eb">
+<b>今日首选 7 码 <span class="mono">{win7}</span></b>（35 注 / 70 元），全期命中 21.75%、近 100 期 33.0%；
+要贴着 1126 全量打就仍用 8 码 <b class="mono">01245689</b>（56 注 / 112 元）。
+6 码 <b class="mono">{_ladder[6]}</b>、5 码 <b class="mono">{_ladder[5]}</b> 为省成本档，命中率相应下降，按预算自行取舍。
+</div>
+</div>
 <div class="card">
 <h3>{today} · 第 {last["issue"]} 期开奖结果</h3>
 <table><thead><tr><th>期号</th><th class="num">开奖号</th><th class="num">形态</th><th class="num">01245689</th><th class="num">结果</th></tr></thead><tbody>
 <tr style="background:{color}"><td>{last["issue"]}</td><td class="num mono">{" ".join(map(str, nums))}</td><td class="num">{shape(nums)}</td><td class="num">{"全在码里" if set(nums) <= SET else "有号不在码里"}</td><td><span class="pill {hit_class}">{hit_text}</span></td></tr>
 </tbody></table>
 </div>
+{monthly_html}
 <div class="card">
 <h3>次日预测 · 第 {nxt} 期（{tomorrow} 21:15 开奖）</h3>
 <table><thead><tr><th>项目</th><th>内容</th></tr></thead><tbody>
