@@ -13,12 +13,15 @@ SET = set(int(c) for c in SEL)
 KILL = "3、7"
 CTX = ssl.create_default_context()
 
-# ── 长期校准常量（来自 4821 期全历史复核，2026-11-27 锁定）──
-# 全期口径实测覆盖率 = 命中数/全部期数（组三豹子算未中）
-LONG_COV = 0.3399
-# 各数字长期出现率（4821 期）
-LONG_RATE = {0: 0.2690, 1: 0.2692, 2: 0.2667, 3: 0.2651, 4: 0.2674,
-             5: 0.2647, 6: 0.2750, 7: 0.2765, 8: 0.2842, 9: 0.2746}
+# ── 长期校准常量（8825 期全历史 2002-2026，2026-11-28 复核锁定）──
+# 全期口径实测覆盖率 = 命中数/全部期数（组三豹子算未中）：3000/8825
+LONG_COV = 0.339943
+# 组六占比：6380/8825
+Z6_RATIO = 0.722946
+# 各数字长期出现率（8825 期全期口径）
+LONG_RATE = {0: 0.271275, 1: 0.273314, 2: 0.260510, 3: 0.270822,
+             4: 0.272295, 5: 0.267762, 6: 0.271048, 7: 0.272295,
+             8: 0.279547, 9: 0.273654}
 
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36")
@@ -260,6 +263,7 @@ def build_section(draws):
         f"{d}（长期 {100*LONG_RATE[d]:.2f}% / 近{n_all}期 {100*rate_w[d]:.2f}%）"
         for d in sorted(set(range(10)) - SET))
     r2 = LONG_RATE[2]
+    n_zh3 = sum(1 for d in draws if len(set(d["nums"])) != 3)   # 组三+豹子期数
 
     notes9 = [" ".join(map(str, sorted(c))) for c in combinations(SET, 3)
               if 2 in c and any(b - a == 1 for a, b in zip(sorted(c), sorted(c)[1:]))]
@@ -280,15 +284,17 @@ def build_section(draws):
 <table><thead><tr><th>项目</th><th>内容</th></tr></thead><tbody>
 <tr style="background:#f0fdf6"><td><b>选码</b></td><td class="mono"><b>01245689</b>（固定 8 码，56 注 / 112 元，每期不变）</td></tr>
 <tr><td><b>杀号</b></td><td>杀 {KILL}（实测各数字出现率：{kill_txt}）</td></tr>
-<tr><td><b>数字 2 状态</b></td><td>{two_state}（长期含2率 {100*r2:.2f}% vs 随机 27.10%，8码已含2）</td></tr>
+<tr><td><b>数字 2 状态</b></td><td>{two_state}（长期含2率 {100*r2:.2f}% vs 理论 27.10%，8码已含2）</td></tr>
 <tr><td><b>加强过滤（9注）</b></td><td class="mono">{"、".join(notes9)}</td></tr>
 <tr><td><b>近 10 期</b></td><td>8 码真兑奖命中 {h10}/10；近 30 期含2 {has2_30}/30、连号 {adj30}/30</td></tr>
 <tr><td><b>3 期内中一次</b></td><td>{roll3:.2f}%（滚动窗口，理论 {100*p3:.2f}%）</td></tr>
-<tr style="background:#fffbf0"><td><b>保本赔付额</b></td><td><b>{pstar:.0f} 元</b>（= 成本 112 元 ÷ 长期覆盖率 {100*LONG_COV:.2f}%，基于 8825 期全历史（2002-2026））。低于此数每期亏，高于此数每期赚。（当前窗口 {n_all} 期实测 {100*cov_win:.2f}%，仅供对照）</td></tr>
+<tr><td><b>本期可跳过？</b></td><td>不能。近 {n_all} 期组三/豹子 {n_zh3} 期（长期 27.71%），这些期必挂；但形态不可预判（卡方 0.113，前后半最优窗口不一致），跳期等于随机少买，实测无收益</td></tr>
+<tr><td><b>倍投上限</b></td><td>单期赔付 302 元；盘口单期赔付上限若为 3000 元，约 9 倍撞线 → <b>不要倍投超过 10 倍</b>，否则触发庄家限额拒单</td></tr>
+<tr style="background:#fffbf0"><td><b>保本赔付额</b></td><td><b>{pstar:.0f} 元</b>（= 成本 112 元 ÷ 长期覆盖率 {100*LONG_COV:.2f}%，基于 8825 期全历史 2002-2026）。低于此数每期亏，高于此数每期赚。（当前窗口 {n_all} 期实测 {100*cov_win:.2f}%，仅供对照）</td></tr>
 </tbody></table>
 <div class="note warn" style="margin-top:14px;margin-bottom:0">
-<b>口径提醒：</b>真兑奖 = 三码全中且三数不同（组六口径）。8 码理论命中率 33.60%，前向期望约 38%。
-连续未中属正常波动，3 期滚动约 78% 至少中一次。本页不构成任何投注建议。
+<b>口径提醒：</b>真兑奖 = 三码全中且三数不同（组六口径），且只在组六期能兑奖。8 码在组六期命中率 47.02%，全期口径 33.99%（= 72.29% × 47.02%）。
+连续未中属正常波动。本页不构成任何投注建议。
 </div>
 </div>
 </section>
