@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """
 1126 算法每日预测（GitHub Actions 版，在仓库内运行）
 只负责：抓福彩官网开奖 → 算当日命中与次日预测 → 更新仓库根目录 index.html 的每日预测区块。
@@ -278,7 +278,7 @@ def build_section(draws):
             break
     two_state = f"含2连续 {streak2} 期" if streak2 else f"已休息 {rest2} 期"
 
-    # ── 14 张 4 码小复式的出票清单（当期号码在哪几张里能兑奖，逐张标出）──
+    # ── 出票清单：14 张 4 码小复式的两种打法（当期号码在哪几张里能兑奖，逐张标出）──
     nset = set(nums)
     t_hits30 = []
     t_today = []
@@ -287,16 +287,38 @@ def build_section(draws):
         t_hits30.append(sum(1 for x in draws[-30:]
                             if len(set(x["nums"])) == 3 and set(x["nums"]) <= ts))
         t_today.append(len(nset) == 3 and nset <= ts)
+    detail = {tk: (h30, hit) for tk, h30, hit in zip(TICKETS, t_hits30, t_today)}
+
+    # 打法A：14 张单打，每张 8 元，限号只损一张
     tk_cells = []
     for tk, h30, hit in zip(TICKETS, t_hits30, t_today):
         tag = " ◀本期中" if hit else ""
-        bg = "background:#f0fdf6" if hit else ""
+        bg = "background:#f0fdf6;border-color:#0a6" if hit else ""
         tk_cells.append(
             f'<span class="mono" style="display:inline-block;margin:0 8px 6px 0;'
             f'padding:2px 6px;border-radius:5px;border:1px solid #dbe3ef;{bg}">'
             f'<b>{tk}</b> <span style="opacity:.6;font-size:11px">近30期{h30}</span>{tag}</span>')
     tickets_html = "".join(tk_cells)
     t_total = sum(t_hits30)
+
+    # 打法B：4 张票（4/4/3/3）每张 24-32 元，全部 ≥20 元门槛，适配山东式派奖
+    groups = [TICKETS[0:4], TICKETS[4:8], TICKETS[8:11], TICKETS[11:14]]
+    g_rows = []
+    for gi, g in enumerate(groups, 1):
+        amt = len(g) * 8
+        gh = sum(detail[tk][0] for tk in g)
+        gh_hit = any(detail[tk][1] for tk in g)
+        bg = "background:#f0fdf6" if gh_hit else ""
+        tag = " ◀本期中" if gh_hit else ""
+        cells = " ".join(
+            f'<b style="color:#0a6">{"<u>"+tk+"</u>" if detail[tk][1] else tk}</b>'
+            for tk in g)
+        g_rows.append(
+            f'<tr style="{bg}"><td>第{gi}张</td><td class="mono">{cells}</td>'
+            f'<td class="num">{len(g)*4} 注</td><td class="num">{amt} 元</td>'
+            f'<td class="num">近30期{gh}{tag}</td></tr>')
+    groups_html = "".join(g_rows)
+    all_hit = [tk for tk in TICKETS if detail[tk][1]]
 
     # ── 派奖期监控：现金加奖窗口内组选6 奖金更高，是唯一能减亏的时段 ──
     bi = _bonus_info(draw_day)
@@ -348,7 +370,8 @@ def build_section(draws):
 <h3>次日预测 · 第 {nxt} 期（{tomorrow} 21:15 开奖）</h3>
 <table><thead><tr><th>项目</th><th>内容</th></tr></thead><tbody>
 <tr style="background:#f0fdf6"><td><b>选码</b></td><td class="mono"><b>01245689</b>（固定 8 码，56 注 / 112 元，每期不变）</td></tr>
-<tr style="background:#f0fdf6"><td><b>出票拆单</b></td><td><b>不要打 1 张 8 码复式，打 14 张 4 码小复式</b>（每张 4 注 / 8 元，共 56 注 / 112 元，零重复零遗漏）。<div style="margin-top:7px">{tickets_html}</div><div style="margin-top:4px;opacity:.75;font-size:11.5px">近 30 期这 14 张合计命中 {t_total} 注。整张 8 码复式只要 56 注里 1 注被单注限号，官方规则是<b>整张不出票</b>；拆开后被限只损 1 张 8 元。</div></td></tr>
+<tr style="background:#f0fdf6"><td><b>出票拆单</b></td><td><b>不要打 1 张 8 码复式，按下面 14 个 4 码组去打</b>（56 注 / 112 元，零重复零遗漏；整张 8 码复式只要 56 注里 1 注被限号，官方规则整张不出票）。<div style="margin-top:8px"><b>打法A · 限号风险最小（14 张，每张 8 元）</b></div><div class="mono" style="margin-top:4px">{tickets_html}</div></td></tr>
+<tr><td></td><td><b>打法B · 过单票门槛（4 张，每张 24–32 元 ≥20 元）</b>：山东 2024 公告要求组选派奖单票≥20 元才参与，打 14 张 8 元票不达标；用这 4 张。<table style="margin-top:6px"><thead><tr><th>票</th><th>4 码组合</th><th class="num">注数</th><th class="num">金额</th><th class="num">近30期</th></tr></thead><tbody>{groups_html}</tbody></table><div style="margin-top:5px;opacity:.75;font-size:11.5px">两种打法覆盖完全相同的 56 注；A 更抗限号，B 更抗门槛，按本省公告选一种，<b>不要两种同时打</b>。</div></td></tr>
 <tr style="{bonus_bg}"><td><b>派奖监控</b></td><td>{bonus_txt}</td></tr>
 <tr><td><b>杀号</b></td><td>杀 {KILL}（实测各数字出现率：{kill_txt}）</td></tr>
 <tr><td><b>数字 2 状态</b></td><td>{two_state}（长期含2率 {100*r2:.2f}% vs 理论 27.10%，8码已含2）</td></tr>
